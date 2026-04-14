@@ -193,9 +193,11 @@ const WING_BASE_Y = 1.75;    // offset of wing tips above pilot origin
 
 // Returns (y, z) of wing mid-line at normalized chord position tc in [-0.5, 0.5].
 function wingPoint(tc: number) {
-  // Elliptical arch — flat-ish middle, tips curve gently downward.
+  // Clipped ellipse — keeps the rounded look of a circle but stops before the
+  // vertical-tangent singularity so adjacent cells at the tips stay aligned.
   const norm = Math.abs(tc * 2); // 0 at center, 1 at tips
-  const arcShape = Math.sqrt(Math.max(0, 1 - norm * norm)); // quarter ellipse
+  const squish = norm * 0.95;
+  const arcShape = Math.sqrt(Math.max(0, 1 - squish * squish));
   const y = WING_BASE_Y + WING_ARCH * arcShape;
   const z = -Math.pow(norm, 2) * 0.18;
   return { y, z };
@@ -224,7 +226,7 @@ function Wing() {
     const abs = Math.abs(tc);
     const color = abs > 0.42 ? "#dc2626" : abs > 0.26 ? "#f59e0b" : "#fbbf24";
 
-    const cellW = (WING_SPAN / WING_CELLS) * 1.05;
+    const cellW = (WING_SPAN / WING_CELLS) * 1.1;
 
     cells.push(
       <mesh key={"c" + i} position={[x, y, z]} rotation={[0, 0, roll]}>
