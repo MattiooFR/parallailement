@@ -8,7 +8,15 @@ import * as THREE from "three";
 import { motion, useScroll, useTransform, type MotionValue } from "framer-motion";
 import { club, nextEvent, highlights } from "@/lib/content";
 
-type Mouse = { x: number; y: number; active: boolean };
+type Mouse = {
+  x: number;
+  y: number;
+  active: boolean;
+  /** incremented on each click to trigger a loop animation */
+  loopToken: number;
+};
+
+const LOOP_DURATION = 1.3; // seconds
 
 const WORLD_CYCLE = 260; // how often the decor repeats in the Z axis
 const WORLD_SPEED = 8;   // base flow speed (units / second)
@@ -30,16 +38,31 @@ function mountainLayer(seedSalt: number) {
     return s / 233280;
   };
   const peaks: React.ReactElement[] = [];
-  for (let i = 0; i < 22; i++) {
+
+  // Close peaks — line the flight corridor on both sides so the pilot can steer between them.
+  for (let i = 0; i < 16; i++) {
     const side = rng() > 0.5 ? 1 : -1;
-    const x = side * (16 + rng() * 105);
+    const x = side * (3.5 + rng() * 6.5); // 3.5..10
     const z = -rng() * WORLD_CYCLE;
-    const h = 8 + rng() * 24;
+    const h = 4 + rng() * 8;
     const color = new THREE.Color()
-      .setHSL(0.58 + rng() * 0.06, 0.2, 0.2 + rng() * 0.22)
+      .setHSL(0.58 + rng() * 0.05, 0.22, 0.22 + rng() * 0.22)
       .getStyle();
-    peaks.push(makePeak(`m${seedSalt}-${i}`, x, h / 2 - 8, z, h, color));
+    peaks.push(makePeak(`nc${seedSalt}-${i}`, x, h / 2 - 8, z, h, color));
   }
+
+  // Backdrop peaks — pushed further out for scenery.
+  for (let i = 0; i < 14; i++) {
+    const side = rng() > 0.5 ? 1 : -1;
+    const x = side * (18 + rng() * 100);
+    const z = -rng() * WORLD_CYCLE;
+    const h = 14 + rng() * 22;
+    const color = new THREE.Color()
+      .setHSL(0.58 + rng() * 0.06, 0.2, 0.18 + rng() * 0.2)
+      .getStyle();
+    peaks.push(makePeak(`fb${seedSalt}-${i}`, x, h / 2 - 8, z, h, color));
+  }
+
   return peaks;
 }
 
@@ -67,20 +90,15 @@ function WorldDecor({ groupRef }: { groupRef: React.RefObject<THREE.Group | null
 
 function WorldFlow({
   groupRef,
-  progress,
 }: {
   groupRef: React.RefObject<THREE.Group | null>;
-  progress: MotionValue<number>;
 }) {
   const offset = useRef(0);
-  useFrame((state, delta) => {
+  useFrame((_state, delta) => {
     if (!groupRef.current) return;
-    // Auto-flow from time, additional speed when user scrolls.
-    const extra = progress.get() * WORLD_SPEED * 10;
-    offset.current += delta * WORLD_SPEED + delta * extra;
-    // Wrap to avoid growing forever — world repeats every WORLD_CYCLE units.
-    const z = offset.current % WORLD_CYCLE;
-    groupRef.current.position.z = z;
+    // Constant flow — scroll never accelerates the décor.
+    offset.current += delta * WORLD_SPEED;
+    groupRef.current.position.z = offset.current % WORLD_CYCLE;
   });
   return null;
 }
@@ -301,6 +319,8 @@ function Paraglider({
   const prevPosRef = useRef(new THREE.Vector3(0, 3, 0));
   const bankRef = useRef(0);
   const pitchRef = useRef(0);
+  const lastLoopToken = useRef(0);
+  const loopStartClock = useRef(-Infinity);
 
   useFrame((state, delta) => {
     if (!groupRef.current) return;
@@ -334,7 +354,28 @@ function Paraglider({
     }
 
     // Z stays fixed — decor flows past via WorldDecor group.
-    const targetZ = 0;
+    let targetZ = 0;
+
+    // Loop trigger: check if a new click happened (hero only).
+    if (inHero && m.loopToken > lastLoopToken.current) {
+      lastLoopToken.current = m.loopToken;
+      loopStartClock.current = clockT;
+    }
+
+    // Compute loop animation contribution (rotation + forward dip).
+    const loopElapsed = clockT - loopStartClock.current;
+    const looping = loopElapsed >= 0 && loopElapsed < LOOP_DURATION;
+    let loopRotX = 0;
+    let loopZ = 0;
+    let loopY = 0;
+    if (looping) {
+      const lp = loopElapsed / LOOP_DURATION; // 0..1
+      loopRotX = lp * Math.PI * 2; // one full loop
+      loopZ = -Math.sin(lp * Math.PI) * 3.5; // advance forward then return
+      loopY = Math.sin(lp * Math.PI) * 1.2; // slight climb at the top
+    }
+    targetZ += loopZ;
+    targetY += loopY;
 
     // During the hide window, teleport instantly (no lerp) so reappearance is clean.
     const hidden = p >= HIDE_FROM && p <= HIDE_TO;
@@ -360,7 +401,8 @@ function Paraglider({
     const dy = posRef.current.y - prevPosRef.current.y;
     const targetPitch = THREE.MathUtils.clamp(dy * -4, -0.25, 0.25);
     pitchRef.current += (targetPitch - pitchRef.current) * 0.08;
-    groupRef.current.rotation.x = pitchRef.current;
+    // During the loop animation, override pitch with a full 2π rotation.
+    groupRef.current.rotation.x = looping ? loopRotX : pitchRef.current;
 
     groupRef.current.rotation.y = -bankRef.current * 0.35;
 
@@ -378,21 +420,27 @@ function Paraglider({
 
 function ChaseCamera({
   groupTargetRef,
+  progress,
 }: {
   groupTargetRef: React.MutableRefObject<THREE.Vector3>;
+  progress: MotionValue<number>;
 }) {
   const tmp = useRef(new THREE.Vector3());
   const lookTmp = useRef(new THREE.Vector3());
   const currentLook = useRef(new THREE.Vector3(0, 3, -10));
   useFrame((state) => {
     const t = groupTargetRef.current;
-    // Camera floats behind + slightly above, pulled back for context.
-    tmp.current.set(t.x * 0.25, t.y + 2.5, t.z + 11);
-    state.camera.position.lerp(tmp.current, 0.08);
+    const p = progress.get();
+    // Hero (mini-game): camera tracks X closely → steering feels responsive.
+    // Sections (cinematic): camera tracks X loosely so the paraglider can exit / reappear.
+    const followMix = Math.min(1, Math.max(0, (p - 0.05) / 0.08));
+    const followStrength = 0.85 - followMix * 0.55; // 0.85 → 0.30
 
-    // Look at a point just beyond the paraglider so it sits in lower-center of frame.
-    lookTmp.current.set(t.x * 0.15, t.y + 0.9, t.z - 3);
-    currentLook.current.lerp(lookTmp.current, 0.1);
+    tmp.current.set(t.x * followStrength, t.y + 1.7, t.z + 7.5);
+    state.camera.position.lerp(tmp.current, 0.1);
+
+    lookTmp.current.set(t.x * followStrength * 0.8, t.y + 0.6, t.z - 4);
+    currentLook.current.lerp(lookTmp.current, 0.12);
     state.camera.lookAt(currentLook.current);
   });
   return null;
@@ -458,12 +506,12 @@ function Scene({
       <Stars radius={200} depth={50} count={2500} factor={4} fade />
       <Ground />
       <WorldDecor groupRef={worldRef} />
-      <WorldFlow groupRef={worldRef} progress={progress} />
+      <WorldFlow groupRef={worldRef} />
       <group ref={paraRef}>
         <Paraglider mouseRef={mouseRef} progress={progress} />
       </group>
       <PilotTracker />
-      <ChaseCamera groupTargetRef={pilotPosRef} />
+      <ChaseCamera groupTargetRef={pilotPosRef} progress={progress} />
     </>
   );
 }
@@ -473,7 +521,7 @@ export default function DesignD() {
   const { scrollYProgress } = useScroll({ target: containerRef });
   const headingOpacity = useTransform(scrollYProgress, [0, 0.12], [1, 0]);
 
-  const mouseRef = useRef<Mouse>({ x: 0, y: 0, active: false });
+  const mouseRef = useRef<Mouse>({ x: 0, y: 0, active: false, loopToken: 0 });
 
   const onMove = (e: React.PointerEvent) => {
     const w = window.innerWidth;
@@ -485,6 +533,12 @@ export default function DesignD() {
   const onLeave = () => {
     mouseRef.current.active = false;
   };
+  const onClick = () => {
+    // Only trigger while in the hero — scripted mode handles its own flight.
+    if (scrollYProgress.get() < 0.10) {
+      mouseRef.current.loopToken += 1;
+    }
+  };
 
   return (
     <main
@@ -492,6 +546,7 @@ export default function DesignD() {
       className="relative min-h-screen text-white"
       onPointerMove={onMove}
       onPointerLeave={onLeave}
+      onClick={onClick}
     >
       <div className="pointer-events-none fixed inset-0 z-0">
         <Canvas shadows camera={{ position: [0, 5, 12], fov: 55 }}>
