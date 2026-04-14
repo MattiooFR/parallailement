@@ -159,7 +159,7 @@ function WorldFlow({
 
     // Lateral drift: subtle hint that steering actually changes heading — not a full slide.
     const pgX = pilotPosRef.current.x;
-    xDrift.current += pgX * dt * 0.6;
+    xDrift.current += pgX * dt * 0.25;
     // Wrap lateral drift so we don't grow unbounded.
     const wrap = WORLD_CYCLE;
     if (xDrift.current > wrap) xDrift.current -= wrap * 2;
@@ -167,7 +167,7 @@ function WorldFlow({
     groupRef.current.position.x = xDrift.current;
 
     // Yaw of the world to reinforce the steering feel.
-    const targetYaw = THREE.MathUtils.clamp(pgX * 0.04, -0.2, 0.2);
+    const targetYaw = THREE.MathUtils.clamp(pgX * 0.02, -0.12, 0.12);
     yawRef.current += (targetYaw - yawRef.current) * 0.06;
     groupRef.current.rotation.y = yawRef.current;
   });
