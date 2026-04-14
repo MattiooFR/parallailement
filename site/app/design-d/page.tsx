@@ -16,7 +16,56 @@ type Mouse = {
   loopToken: number;
 };
 
-const LOOP_DURATION = 1.3; // seconds
+const LOOP_DURATION = 1.8; // seconds
+const PIVOT_Y = 2.0; // vertical offset (local Y) where the pilot group orbits — near the wing anchor.
+
+const smoothstep = (x: number) => {
+  const t = Math.max(0, Math.min(1, x));
+  return t * t * (3 - 2 * t);
+};
+
+/** Rotation of the whole canopy+pilot during the loop (radians, around X axis).
+ *  Full sequence: cabrage → piqué → full 2π loop → settle. */
+function loopParaPitch(lp: number) {
+  // 0 .. 0.16 : cabrage (pitch up, no rotation yet) → -0.45
+  if (lp < 0.16) return -0.45 * smoothstep(lp / 0.16);
+  // 0.16 .. 0.28 : piqué (pitch down, canopy dives ahead, picks up speed) → +0.35
+  if (lp < 0.28) {
+    const t = (lp - 0.16) / 0.12;
+    return -0.45 + 0.8 * smoothstep(t);
+  }
+  // 0.28 .. 0.92 : full 2π loop, canopy AND pilot rotate together
+  if (lp < 0.92) {
+    const t = (lp - 0.28) / 0.64;
+    return 0.35 + Math.PI * 2 * smoothstep(t);
+  }
+  // 0.92 .. 1 : settle back from (2π + 0.35) to 2π (same as 0 visually)
+  const t = (lp - 0.92) / 0.08;
+  return Math.PI * 2 + 0.35 * (1 - smoothstep(t));
+}
+
+/** Pendulum offset of the pilot relative to the canopy during the loop.
+ *  Small swing that gives life to the movement (pilot lags/leads the wing). */
+function loopPilotAngle(lp: number) {
+  // Only active during the 2π loop phase.
+  if (lp < 0.28) return 0;
+  if (lp < 0.92) {
+    const t = (lp - 0.28) / 0.64;
+    // Bell curve: pilot swings out and back within the loop.
+    return Math.sin(t * Math.PI) * 0.35;
+  }
+  return 0;
+}
+
+/** Forward Z advance during the sequence (negative = forward). */
+function loopForward(lp: number) {
+  return -Math.sin(lp * Math.PI) * 2.8;
+}
+
+/** Small vertical bump during the sequence. */
+function loopRise(lp: number) {
+  return Math.sin(lp * Math.PI) * 0.6;
+}
 
 const WORLD_CYCLE = 260; // how often the decor repeats in the Z axis
 const WORLD_SPEED = 8;   // base flow speed (units / second)
@@ -337,6 +386,8 @@ function Paraglider({
   progress: MotionValue<number>;
 }) {
   const groupRef = useRef<THREE.Group>(null);
+  const pilotOrbitRef = useRef<THREE.Group>(null);
+  const linesGroupRef = useRef<THREE.Group>(null);
   const posRef = useRef(new THREE.Vector3(0, 3, 0));
   const prevPosRef = useRef(new THREE.Vector3(0, 3, 0));
   const bankRef = useRef(0);
@@ -384,17 +435,19 @@ function Paraglider({
       loopStartClock.current = clockT;
     }
 
-    // Compute loop animation contribution (rotation + forward dip).
+    // Compute loop animation contribution: paraglider pitch + pilot orbit around wing.
     const loopElapsed = clockT - loopStartClock.current;
     const looping = loopElapsed >= 0 && loopElapsed < LOOP_DURATION;
-    let loopRotX = 0;
+    let paraPitch = 0;
+    let pilotAngle = 0;
     let loopZ = 0;
     let loopY = 0;
     if (looping) {
-      const lp = loopElapsed / LOOP_DURATION; // 0..1
-      loopRotX = lp * Math.PI * 2; // one full loop
-      loopZ = -Math.sin(lp * Math.PI) * 3.5; // advance forward then return
-      loopY = Math.sin(lp * Math.PI) * 1.2; // slight climb at the top
+      const lp = loopElapsed / LOOP_DURATION;
+      paraPitch = loopParaPitch(lp);
+      pilotAngle = loopPilotAngle(lp);
+      loopZ = loopForward(lp);
+      loopY = loopRise(lp);
     }
     targetZ += loopZ;
     targetY += loopY;
@@ -419,14 +472,19 @@ function Paraglider({
     bankRef.current += (targetBank - bankRef.current) * 0.08;
     groupRef.current.rotation.z = bankRef.current;
 
-    // Pitch from vertical velocity
+    // Pitch from vertical velocity (natural flight)
     const dy = posRef.current.y - prevPosRef.current.y;
     const targetPitch = THREE.MathUtils.clamp(dy * -4, -0.25, 0.25);
     pitchRef.current += (targetPitch - pitchRef.current) * 0.08;
-    // During the loop animation, override pitch with a full 2π rotation.
-    groupRef.current.rotation.x = looping ? loopRotX : pitchRef.current;
+    // During the loop, the canopy pitches up then dives (cabrage / piqué).
+    groupRef.current.rotation.x = looping ? paraPitch : pitchRef.current;
 
     groupRef.current.rotation.y = -bankRef.current * 0.35;
+
+    // Pilot has a small pendulum swing relative to the canopy during the loop.
+    if (pilotOrbitRef.current) {
+      pilotOrbitRef.current.rotation.x = pilotAngle;
+    }
 
     prevPosRef.current.copy(posRef.current);
   });
@@ -434,8 +492,13 @@ function Paraglider({
   return (
     <group ref={groupRef}>
       <Wing />
-      <Lines />
-      <Harness />
+      {/* Pilot + lines pivot around the wing anchor (PIVOT_Y). */}
+      <group position={[0, PIVOT_Y, 0]} ref={pilotOrbitRef}>
+        <group position={[0, -PIVOT_Y, 0]}>
+          <Lines />
+          <Harness />
+        </group>
+      </group>
     </group>
   );
 }
