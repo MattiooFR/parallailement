@@ -17,7 +17,7 @@ type Mouse = {
 };
 
 const LOOP_DURATION = 1.8; // seconds
-const PIVOT_Y = 2.85; // vertical offset (local Y) where the pilot group orbits — near the wing anchor.
+const PIVOT_Y = 2.5; // vertical offset (local Y) where the pilot group orbits — near the wing anchor.
 
 const smoothstep = (x: number) => {
   const t = Math.max(0, Math.min(1, x));
@@ -189,7 +189,7 @@ const WING_CHORD = 1.1;
 const WING_CELLS = 26;       // distinct cells — visible but no gaps at the tips
 const WING_THICKNESS = 0.28;
 const WING_ARCH = 1.4;       // rounded dome
-const WING_BASE_Y = 2.1;     // offset of wing tips above pilot origin
+const WING_BASE_Y = 1.75;    // offset of wing tips above pilot origin
 
 // Returns (y, z) of wing mid-line at normalized chord position tc in [-0.5, 0.5].
 function wingPoint(tc: number) {
