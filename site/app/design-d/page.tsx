@@ -202,12 +202,10 @@ function wingPoint(tc: number) {
 }
 
 function wingRoll(tc: number) {
-  // Cells at the tips tilt along the curve's tangent (derivative of an ellipse).
+  // Smooth bounded roll (instead of the ellipse derivative, which blows up at the tips
+  // and creates a visual gap). Power < 2 gives a gentle taper up to the tips.
   const norm = tc * 2; // -1..1
-  const denom = Math.sqrt(Math.max(0.001, 1 - norm * norm));
-  // Slope dy/dx of the ellipse, scaled down for a gentle visual bank.
-  const slope = (-norm / denom) * (WING_ARCH / (WING_SPAN / 2));
-  return Math.atan(slope) * 0.6;
+  return Math.sign(norm) * Math.pow(Math.abs(norm), 1.5) * 0.5;
 }
 
 function Wing() {
