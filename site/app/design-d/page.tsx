@@ -25,23 +25,24 @@ const smoothstep = (x: number) => {
 };
 
 /** Rotation of the whole canopy+pilot during the loop (radians, around X axis).
- *  Full sequence: cabrage → piqué → full 2π loop → settle. */
+ *  Signs are calibrated for the Y-flipped model: positive X = leading edge UP (cabrage),
+ *  negative X = leading edge DOWN (piqué), full front loop goes to -2π. */
 function loopParaPitch(lp: number) {
-  // 0 .. 0.16 : cabrage (pitch up, no rotation yet) → -0.45
-  if (lp < 0.16) return -0.45 * smoothstep(lp / 0.16);
-  // 0.16 .. 0.28 : piqué (pitch down, canopy dives ahead, picks up speed) → +0.35
+  // 0 .. 0.16 : cabrage (leading edge up) → +0.45
+  if (lp < 0.16) return 0.45 * smoothstep(lp / 0.16);
+  // 0.16 .. 0.28 : piqué (dives forward to build speed) → -0.35
   if (lp < 0.28) {
     const t = (lp - 0.16) / 0.12;
-    return -0.45 + 0.8 * smoothstep(t);
+    return 0.45 - 0.8 * smoothstep(t);
   }
-  // 0.28 .. 0.92 : full 2π loop, canopy AND pilot rotate together
+  // 0.28 .. 0.92 : full front loop (-2π rotation) — canopy + pilot rotate together
   if (lp < 0.92) {
     const t = (lp - 0.28) / 0.64;
-    return 0.35 + Math.PI * 2 * smoothstep(t);
+    return -0.35 - Math.PI * 2 * smoothstep(t);
   }
-  // 0.92 .. 1 : settle back from (2π + 0.35) to 2π (same as 0 visually)
+  // 0.92 .. 1 : settle from (-2π - 0.35) back to -2π (same as 0 visually)
   const t = (lp - 0.92) / 0.08;
-  return Math.PI * 2 + 0.35 * (1 - smoothstep(t));
+  return -Math.PI * 2 - 0.35 * (1 - smoothstep(t));
 }
 
 /** Pendulum offset of the pilot relative to the canopy during the loop.
@@ -491,12 +492,17 @@ function Paraglider({
 
   return (
     <group ref={groupRef}>
-      <Wing />
-      {/* Pilot + lines pivot around the wing anchor (PIVOT_Y). */}
-      <group position={[0, PIVOT_Y, 0]} ref={pilotOrbitRef}>
-        <group position={[0, -PIVOT_Y, 0]}>
-          <Lines />
-          <Harness />
+      {/* Flip the whole model 180° around Y so the pilot flies forward (back to camera). */}
+      <group rotation={[0, Math.PI, 0]}>
+        <Wing />
+        {/* Pilot + lines pivot around the wing anchor (PIVOT_Y). */}
+        <group position={[0, PIVOT_Y, 0]} ref={pilotOrbitRef}>
+          <group position={[0, -PIVOT_Y, 0]}>
+            <group ref={linesGroupRef}>
+              <Lines />
+            </group>
+            <Harness />
+          </group>
         </group>
       </group>
     </group>
