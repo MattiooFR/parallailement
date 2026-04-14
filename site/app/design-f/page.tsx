@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRef } from "react";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion, useScroll, useTransform, type MotionValue } from "framer-motion";
 import { club, nextEvent, highlights } from "@/lib/content";
 
 type Pin = {
@@ -292,7 +292,7 @@ function DynamicPin({
 }: {
   pin: Pin;
   idx: number;
-  activeIdx: ReturnType<typeof useTransform<number>>;
+  activeIdx: MotionValue<number>;
 }) {
   const isActive = useTransform(activeIdx, (v) => v === idx);
   return <PinMarker pin={pin} highlight={isActive.get()} />;
