@@ -90,15 +90,37 @@ function WorldDecor({ groupRef }: { groupRef: React.RefObject<THREE.Group | null
 
 function WorldFlow({
   groupRef,
+  pilotPosRef,
 }: {
   groupRef: React.RefObject<THREE.Group | null>;
+  pilotPosRef: React.MutableRefObject<THREE.Vector3>;
 }) {
-  const offset = useRef(0);
+  const zOffset = useRef(0);
+  const xDrift = useRef(0);
+  const yawRef = useRef(0);
+
   useFrame((_state, delta) => {
     if (!groupRef.current) return;
-    // Constant flow — scroll never accelerates the décor.
-    offset.current += delta * WORLD_SPEED;
-    groupRef.current.position.z = offset.current % WORLD_CYCLE;
+    const dt = Math.min(delta, 0.05);
+
+    // Constant forward flow.
+    zOffset.current += dt * WORLD_SPEED;
+    groupRef.current.position.z = zOffset.current % WORLD_CYCLE;
+
+    // Lateral drift: the world moves opposite to the paraglider's X — the pilot is steering.
+    // Integrates over time so holding right actually turns you into new terrain.
+    const pgX = pilotPosRef.current.x;
+    xDrift.current -= pgX * dt * 0.9;
+    // Wrap lateral drift so we don't grow unbounded.
+    const wrap = WORLD_CYCLE;
+    if (xDrift.current > wrap) xDrift.current -= wrap * 2;
+    if (xDrift.current < -wrap) xDrift.current += wrap * 2;
+    groupRef.current.position.x = xDrift.current;
+
+    // Slight yaw of the world to reinforce the steering feel.
+    const targetYaw = THREE.MathUtils.clamp(-pgX * 0.05, -0.25, 0.25);
+    yawRef.current += (targetYaw - yawRef.current) * 0.06;
+    groupRef.current.rotation.y = yawRef.current;
   });
   return null;
 }
@@ -506,7 +528,7 @@ function Scene({
       <Stars radius={200} depth={50} count={2500} factor={4} fade />
       <Ground />
       <WorldDecor groupRef={worldRef} />
-      <WorldFlow groupRef={worldRef} />
+      <WorldFlow groupRef={worldRef} pilotPosRef={pilotPosRef} />
       <group ref={paraRef}>
         <Paraglider mouseRef={mouseRef} progress={progress} />
       </group>
