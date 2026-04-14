@@ -476,9 +476,9 @@ function Paraglider({
     bankRef.current += (targetBank - bankRef.current) * 0.08;
     groupRef.current.rotation.z = bankRef.current;
 
-    // Pitch from vertical velocity (natural flight)
+    // Pitch from vertical velocity — going UP shows cabrage (nose up), DOWN shows piqué.
     const dy = posRef.current.y - prevPosRef.current.y;
-    const targetPitch = THREE.MathUtils.clamp(dy * -4, -0.25, 0.25);
+    const targetPitch = THREE.MathUtils.clamp(dy * 4, -0.25, 0.25);
     pitchRef.current += (targetPitch - pitchRef.current) * 0.08;
     // During the loop, the canopy pitches up then dives (cabrage / piqué).
     groupRef.current.rotation.x = looping ? paraPitch : pitchRef.current;
