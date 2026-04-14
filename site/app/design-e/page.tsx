@@ -169,7 +169,7 @@ export default function DesignE() {
               <span className="h-2 w-2 animate-pulse rounded-full bg-cyan-500" /> Les
               thermiques travaillent
             </div>
-            <h1 className="mt-8 max-w-5xl font-display text-7xl font-bold leading-[0.95] tracking-tight sm:text-[12vw]">
+            <h1 className="mt-8 max-w-5xl font-display text-[14vw] font-bold leading-[0.95] tracking-tight sm:text-[12vw]">
               On lit le <span className="italic text-cyan-700">vent</span>,
               <br />
               puis on vole.

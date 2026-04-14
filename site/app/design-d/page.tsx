@@ -3,103 +3,413 @@
 import Link from "next/link";
 import { Suspense, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Float, Stars } from "@react-three/drei";
+import { Stars, Line } from "@react-three/drei";
 import * as THREE from "three";
 import { motion, useScroll, useTransform, type MotionValue } from "framer-motion";
 import { club, nextEvent, highlights } from "@/lib/content";
 
-function Mountains() {
-  const group = useRef<THREE.Group>(null);
-  useFrame((state) => {
-    if (group.current) {
-      group.current.rotation.y = state.clock.elapsedTime * 0.02;
-    }
-  });
+type Mouse = { x: number; y: number; active: boolean };
 
-  const mountains = [];
-  for (let i = 0; i < 28; i++) {
-    const x = (Math.random() - 0.5) * 160;
-    const z = -Math.random() * 220 - 10;
-    const h = 6 + Math.random() * 22;
-    mountains.push(
-      <mesh key={i} position={[x, h / 2 - 8, z]} castShadow>
-        <coneGeometry args={[h * 0.55, h, 4]} />
-        <meshStandardMaterial
-          color={new THREE.Color().setHSL(0.6 + Math.random() * 0.05, 0.15, 0.2 + Math.random() * 0.25)}
-          flatShading
-        />
-      </mesh>,
-    );
+const WORLD_CYCLE = 260; // how often the decor repeats in the Z axis
+const WORLD_SPEED = 8;   // base flow speed (units / second)
+
+function makePeak(id: string, x: number, y: number, z: number, h: number, color: string) {
+  return (
+    <mesh key={id} position={[x, y, z]} castShadow>
+      <coneGeometry args={[h * 0.55, h, 4]} />
+      <meshStandardMaterial color={color} flatShading />
+    </mesh>
+  );
+}
+
+function mountainLayer(seedSalt: number) {
+  // Deterministic layout shared between copies so the loop is seamless.
+  let s = 13 + seedSalt;
+  const rng = () => {
+    s = (s * 9301 + 49297) % 233280;
+    return s / 233280;
+  };
+  const peaks: React.ReactElement[] = [];
+  for (let i = 0; i < 22; i++) {
+    const side = rng() > 0.5 ? 1 : -1;
+    const x = side * (16 + rng() * 105);
+    const z = -rng() * WORLD_CYCLE;
+    const h = 8 + rng() * 24;
+    const color = new THREE.Color()
+      .setHSL(0.58 + rng() * 0.06, 0.2, 0.2 + rng() * 0.22)
+      .getStyle();
+    peaks.push(makePeak(`m${seedSalt}-${i}`, x, h / 2 - 8, z, h, color));
   }
-  return <group ref={group}>{mountains}</group>;
+  return peaks;
+}
+
+function WorldDecor({ groupRef }: { groupRef: React.RefObject<THREE.Group | null> }) {
+  const layerA = mountainLayer(0);
+  const layerB = mountainLayer(0); // same layout, offset by WORLD_CYCLE for seamless loop
+  return (
+    <group ref={groupRef}>
+      {/* Copy A */}
+      <group>{layerA}</group>
+      {/* Copy B shifted back — so when A flows past, B is already there */}
+      <group position={[0, 0, -WORLD_CYCLE]}>{layerB}</group>
+      {/* Signature take-off mountain — sits in the loop so it passes by too. */}
+      <mesh position={[18, 8, -WORLD_CYCLE * 0.6]} castShadow>
+        <coneGeometry args={[10, 32, 5]} />
+        <meshStandardMaterial color="#3b4a5f" flatShading />
+      </mesh>
+      <mesh position={[18, 20, -WORLD_CYCLE * 0.6]} castShadow>
+        <coneGeometry args={[3.5, 8, 5]} />
+        <meshStandardMaterial color="#f1f5f9" flatShading />
+      </mesh>
+    </group>
+  );
+}
+
+function WorldFlow({
+  groupRef,
+  progress,
+}: {
+  groupRef: React.RefObject<THREE.Group | null>;
+  progress: MotionValue<number>;
+}) {
+  const offset = useRef(0);
+  useFrame((state, delta) => {
+    if (!groupRef.current) return;
+    // Auto-flow from time, additional speed when user scrolls.
+    const extra = progress.get() * WORLD_SPEED * 10;
+    offset.current += delta * WORLD_SPEED + delta * extra;
+    // Wrap to avoid growing forever — world repeats every WORLD_CYCLE units.
+    const z = offset.current % WORLD_CYCLE;
+    groupRef.current.position.z = z;
+  });
+  return null;
 }
 
 function Ground() {
   return (
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -8, -100]} receiveShadow>
-      <planeGeometry args={[500, 500, 1, 1]} />
+      <planeGeometry args={[600, 600, 1, 1]} />
       <meshStandardMaterial color="#1d2b38" />
     </mesh>
   );
 }
 
-function Paraglider({ progress }: { progress: MotionValue<number> }) {
-  const ref = useRef<THREE.Group>(null);
-  useFrame((state) => {
-    if (!ref.current) return;
-    const t = state.clock.elapsedTime;
-    const p = progress.get();
-    ref.current.position.y = 2 + Math.sin(t * 0.8) * 0.3 - p * 2;
-    ref.current.position.x = Math.sin(t * 0.4) * 0.6;
-    ref.current.rotation.z = Math.sin(t * 0.4) * 0.08;
-  });
+// Wing geometry constants (reused by Lines())
+const WING_SPAN = 4.6;
+const WING_CHORD = 1.05;
+const WING_CELLS = 16;
+const WING_ARCH = 1.0;       // how high the center sits above the tips
+const WING_BASE_Y = 1.1;     // offset of wing tips above pilot origin
+
+// Returns (y, z) of wing mid-line at normalized chord position tc in [-0.5, 0.5].
+function wingPoint(tc: number) {
+  // Arch: center HIGH, tips LOW.
+  const y = WING_BASE_Y + WING_ARCH * Math.cos(tc * Math.PI * 0.82);
+  // Slight forward sweep near the tips (tips advance a bit in front of the center).
+  const z = -Math.pow(Math.abs(tc * 2), 2) * 0.25;
+  return { y, z };
+}
+
+function Wing() {
+  const cells: React.ReactElement[] = [];
+  const trailing: React.ReactElement[] = [];
+  const leading: React.ReactElement[] = [];
+
+  for (let i = 0; i < WING_CELLS; i++) {
+    const t = i / (WING_CELLS - 1);
+    const tc = t - 0.5;
+    const x = tc * WING_SPAN;
+    const { y, z } = wingPoint(tc);
+
+    // Each cell is tangent to the arc — roll around Z so the chord follows the curve.
+    const roll = Math.sin(tc * Math.PI * 0.82) * 0.7;
+
+    // Color banding
+    const abs = Math.abs(tc);
+    const color =
+      abs > 0.42 ? "#dc2626" : abs > 0.26 ? "#f59e0b" : "#fbbf24";
+
+    const cellW = (WING_SPAN / WING_CELLS) * 0.96;
+
+    cells.push(
+      <mesh key={"c" + i} position={[x, y, z]} rotation={[0, 0, roll]}>
+        <boxGeometry args={[cellW, 0.32, WING_CHORD]} />
+        <meshStandardMaterial color={color} flatShading roughness={0.55} />
+      </mesh>,
+    );
+
+    // Trailing edge — dark stripe along the back
+    trailing.push(
+      <mesh
+        key={"t" + i}
+        position={[x, y - 0.1, z - WING_CHORD / 2 + 0.03]}
+        rotation={[0, 0, roll]}
+      >
+        <boxGeometry args={[cellW, 0.1, 0.08]} />
+        <meshStandardMaterial color="#0f172a" />
+      </mesh>,
+    );
+
+    // Leading edge — slightly rounded
+    leading.push(
+      <mesh
+        key={"l" + i}
+        position={[x, y + 0.15, z + WING_CHORD / 2 - 0.04]}
+        rotation={[0, 0, roll]}
+      >
+        <boxGeometry args={[cellW, 0.08, 0.08]} />
+        <meshStandardMaterial color="#ffffff" />
+      </mesh>,
+    );
+  }
+
   return (
-    <Float speed={1.5} rotationIntensity={0.4} floatIntensity={0.6}>
-      <group ref={ref} position={[0, 2, -4]}>
-        {/* Wing */}
-        <mesh position={[0, 1, 0]}>
-          <boxGeometry args={[3, 0.1, 0.8]} />
-          <meshStandardMaterial color="#f59e0b" />
-        </mesh>
-        {/* Pilot */}
-        <mesh position={[0, 0, 0]}>
-          <sphereGeometry args={[0.22, 16, 16]} />
-          <meshStandardMaterial color="#111" />
-        </mesh>
-        {/* Lines */}
-        {[-1, -0.5, 0.5, 1].map((x) => (
-          <mesh key={x} position={[x, 0.5, 0]}>
-            <cylinderGeometry args={[0.01, 0.01, 1]} />
-            <meshStandardMaterial color="#fff" />
-          </mesh>
-        ))}
-      </group>
-    </Float>
+    <group>
+      {cells}
+      {trailing}
+      {leading}
+    </group>
   );
 }
 
-function FlyingCamera({ progress }: { progress: MotionValue<number> }) {
-  useFrame((state) => {
+function Harness() {
+  return (
+    <group scale={0.7}>
+      {/* Cocoon body */}
+      <mesh rotation={[-0.15, 0, 0]}>
+        <capsuleGeometry args={[0.26, 0.75, 6, 12]} />
+        <meshStandardMaterial color="#1e293b" flatShading />
+      </mesh>
+      {/* Legs forward */}
+      <mesh position={[0, -0.15, 0.48]} rotation={[0.42, 0, 0]}>
+        <boxGeometry args={[0.3, 0.25, 0.65]} />
+        <meshStandardMaterial color="#0f172a" flatShading />
+      </mesh>
+      {/* Speedbar */}
+      <mesh position={[0, -0.34, 0.85]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.012, 0.012, 0.35, 6]} />
+        <meshStandardMaterial color="#94a3b8" />
+      </mesh>
+      {/* Back plate */}
+      <mesh position={[0, 0.18, -0.2]} rotation={[-0.22, 0, 0]}>
+        <boxGeometry args={[0.32, 0.4, 0.1]} />
+        <meshStandardMaterial color="#0f172a" flatShading />
+      </mesh>
+      {/* Helmet */}
+      <mesh position={[0, 0.46, -0.04]}>
+        <sphereGeometry args={[0.17, 16, 16]} />
+        <meshStandardMaterial color="#dc2626" roughness={0.35} />
+      </mesh>
+    </group>
+  );
+}
+
+function Lines() {
+  // Risers converge at two points above the pilot's shoulders, then fan out to the wing.
+  const riserL: [number, number, number] = [-0.2, 0.35, 0];
+  const riserR: [number, number, number] = [0.2, 0.35, 0];
+
+  const ratios = [-0.46, -0.32, -0.18, -0.06, 0.06, 0.18, 0.32, 0.46];
+  const els: React.ReactElement[] = [];
+
+  ratios.forEach((r, i) => {
+    const x = r * WING_SPAN;
+    const { y, z } = wingPoint(r);
+    const target = r < 0 ? riserL : riserR;
+    els.push(
+      <Line
+        key={"s" + i}
+        points={[
+          [x, y - 0.2, z],
+          target,
+        ]}
+        color="#e2e8f0"
+        lineWidth={0.8}
+        transparent
+        opacity={0.75}
+      />,
+    );
+  });
+
+  els.push(
+    <Line
+      key="rl"
+      points={[riserL, [-0.16, -0.05, 0]]}
+      color="#cbd5e1"
+      lineWidth={1.3}
+      transparent
+      opacity={0.95}
+    />,
+    <Line
+      key="rr"
+      points={[riserR, [0.16, -0.05, 0]]}
+      color="#cbd5e1"
+      lineWidth={1.3}
+      transparent
+      opacity={0.95}
+    />,
+  );
+
+  return <>{els}</>;
+}
+
+// Keyframed wander path (X, Y) along scroll progress. Z is always forward.
+const WANDER: Array<{ p: number; x: number; y: number }> = [
+  { p: 0.00, x: 0,   y: 3 },   // hero — centered
+  { p: 0.10, x: 2,   y: 4 },
+  { p: 0.14, x: -6,  y: 9 },   // exits top-left
+  // [0.14 .. 0.20] invisible — teleport
+  { p: 0.20, x: 14,  y: 6 },   // reappears from the right
+  { p: 0.28, x: 7,   y: 5 },
+  { p: 0.38, x: -4,  y: 7 },   // drifts left
+  { p: 0.50, x: 5,   y: 6 },
+  { p: 0.60, x: -7,  y: 8 },   // big left sweep
+  { p: 0.72, x: 6,   y: 5 },
+  { p: 0.84, x: -3,  y: 7 },
+  { p: 1.00, x: 0,   y: 5 },   // centered finish
+];
+
+function sampleWander(p: number): { x: number; y: number } {
+  if (p <= WANDER[0].p) return { x: WANDER[0].x, y: WANDER[0].y };
+  if (p >= WANDER[WANDER.length - 1].p)
+    return { x: WANDER[WANDER.length - 1].x, y: WANDER[WANDER.length - 1].y };
+  for (let i = 0; i < WANDER.length - 1; i++) {
+    const a = WANDER[i];
+    const b = WANDER[i + 1];
+    if (p >= a.p && p <= b.p) {
+      const t = (p - a.p) / (b.p - a.p);
+      // Smoothstep
+      const s = t * t * (3 - 2 * t);
+      return { x: a.x + (b.x - a.x) * s, y: a.y + (b.y - a.y) * s };
+    }
+  }
+  return { x: 0, y: 3 };
+}
+
+const HIDE_FROM = 0.14;
+const HIDE_TO = 0.20;
+
+function Paraglider({
+  mouseRef,
+  progress,
+}: {
+  mouseRef: React.MutableRefObject<Mouse>;
+  progress: MotionValue<number>;
+}) {
+  const groupRef = useRef<THREE.Group>(null);
+  const posRef = useRef(new THREE.Vector3(0, 3, 0));
+  const prevPosRef = useRef(new THREE.Vector3(0, 3, 0));
+  const bankRef = useRef(0);
+  const pitchRef = useRef(0);
+
+  useFrame((state, delta) => {
+    if (!groupRef.current) return;
+    const dt = Math.min(delta, 0.05);
+
+    const m = mouseRef.current;
     const p = progress.get();
-    const z = 10 - p * 200;
-    state.camera.position.set(0, 3 + Math.sin(state.clock.elapsedTime * 0.3) * 0.4, z);
-    state.camera.lookAt(0, 1, z - 10);
+    const clockT = state.clock.elapsedTime;
+
+    // During the hero the paraglider stays roughly in place (mouse offsets X/Y), while
+    // the world group flows past behind it. After the hero, the scripted wander kicks in.
+    const inHero = p < 0.10;
+
+    let targetX: number;
+    let targetY: number;
+
+    if (inHero) {
+      if (m.active) {
+        targetX = m.x * 4.5;
+        targetY = 3.2 + m.y * 2.8;
+      } else {
+        targetX = Math.sin(clockT * 0.45) * 1.4;
+        targetY = 3.2 + Math.cos(clockT * 0.35) * 0.5;
+      }
+    } else {
+      const scripted = sampleWander(p);
+      const idleX = Math.sin(clockT * 0.5) * 0.7;
+      const idleY = Math.cos(clockT * 0.4) * 0.3;
+      targetX = scripted.x + idleX;
+      targetY = scripted.y + idleY;
+    }
+
+    // Z stays fixed — decor flows past via WorldDecor group.
+    const targetZ = 0;
+
+    // During the hide window, teleport instantly (no lerp) so reappearance is clean.
+    const hidden = p >= HIDE_FROM && p <= HIDE_TO;
+    if (hidden) {
+      posRef.current.set(targetX, targetY, targetZ);
+    } else {
+      const lerp = 1 - Math.pow(0.0015, dt);
+      posRef.current.x += (targetX - posRef.current.x) * lerp;
+      posRef.current.y += (targetY - posRef.current.y) * lerp;
+      posRef.current.z += (targetZ - posRef.current.z) * Math.min(1, dt * 3);
+    }
+
+    groupRef.current.position.copy(posRef.current);
+    groupRef.current.visible = !hidden;
+
+    // Bank from lateral velocity
+    const dx = posRef.current.x - prevPosRef.current.x;
+    const targetBank = THREE.MathUtils.clamp(dx * -8, -0.6, 0.6);
+    bankRef.current += (targetBank - bankRef.current) * 0.08;
+    groupRef.current.rotation.z = bankRef.current;
+
+    // Pitch from vertical velocity
+    const dy = posRef.current.y - prevPosRef.current.y;
+    const targetPitch = THREE.MathUtils.clamp(dy * -4, -0.25, 0.25);
+    pitchRef.current += (targetPitch - pitchRef.current) * 0.08;
+    groupRef.current.rotation.x = pitchRef.current;
+
+    groupRef.current.rotation.y = -bankRef.current * 0.35;
+
+    prevPosRef.current.copy(posRef.current);
+  });
+
+  return (
+    <group ref={groupRef}>
+      <Wing />
+      <Lines />
+      <Harness />
+    </group>
+  );
+}
+
+function ChaseCamera({
+  groupTargetRef,
+}: {
+  groupTargetRef: React.MutableRefObject<THREE.Vector3>;
+}) {
+  const tmp = useRef(new THREE.Vector3());
+  const lookTmp = useRef(new THREE.Vector3());
+  const currentLook = useRef(new THREE.Vector3(0, 3, -10));
+  useFrame((state) => {
+    const t = groupTargetRef.current;
+    // Camera floats behind + slightly above, pulled back for context.
+    tmp.current.set(t.x * 0.25, t.y + 2.5, t.z + 11);
+    state.camera.position.lerp(tmp.current, 0.08);
+
+    // Look at a point just beyond the paraglider so it sits in lower-center of frame.
+    lookTmp.current.set(t.x * 0.15, t.y + 0.9, t.z - 3);
+    currentLook.current.lerp(lookTmp.current, 0.1);
+    state.camera.lookAt(currentLook.current);
   });
   return null;
 }
 
 function SkyGradient() {
   return (
-    <mesh position={[0, 0, -180]} scale={[600, 300, 1]}>
+    <mesh position={[0, 0, -180]} scale={[700, 400, 1]}>
       <planeGeometry />
       <shaderMaterial
         uniforms={{}}
         fragmentShader={`
           varying vec2 vUv;
           void main() {
-            vec3 top = vec3(0.42, 0.63, 0.85);
-            vec3 mid = vec3(0.92, 0.74, 0.52);
-            vec3 bottom = vec3(0.98, 0.55, 0.35);
+            vec3 top = vec3(0.18, 0.38, 0.62);
+            vec3 mid = vec3(0.85, 0.64, 0.42);
+            vec3 bottom = vec3(0.96, 0.48, 0.28);
             float t = vUv.y;
             vec3 col = mix(bottom, mid, smoothstep(0.0, 0.55, t));
             col = mix(col, top, smoothstep(0.55, 1.0, t));
@@ -119,18 +429,41 @@ function SkyGradient() {
   );
 }
 
-function Scene({ progress }: { progress: MotionValue<number> }) {
+function Scene({
+  mouseRef,
+  progress,
+}: {
+  mouseRef: React.MutableRefObject<Mouse>;
+  progress: MotionValue<number>;
+}) {
+  const pilotPosRef = useRef(new THREE.Vector3(0, 3, 0));
+  const paraRef = useRef<THREE.Group>(null);
+  const worldRef = useRef<THREE.Group>(null);
+
+  function PilotTracker() {
+    useFrame(() => {
+      if (paraRef.current) {
+        pilotPosRef.current.copy(paraRef.current.position);
+      }
+    });
+    return null;
+  }
+
   return (
     <>
       <SkyGradient />
-      <ambientLight intensity={0.6} />
-      <directionalLight position={[10, 20, 10]} intensity={1.2} castShadow />
-      <fog attach="fog" args={["#f0b787", 15, 140]} />
-      <Stars radius={200} depth={50} count={3000} factor={4} fade />
+      <ambientLight intensity={0.55} />
+      <directionalLight position={[10, 20, 10]} intensity={1.3} castShadow />
+      <fog attach="fog" args={["#f0b787", 20, 170]} />
+      <Stars radius={200} depth={50} count={2500} factor={4} fade />
       <Ground />
-      <Mountains />
-      <Paraglider progress={progress} />
-      <FlyingCamera progress={progress} />
+      <WorldDecor groupRef={worldRef} />
+      <WorldFlow groupRef={worldRef} progress={progress} />
+      <group ref={paraRef}>
+        <Paraglider mouseRef={mouseRef} progress={progress} />
+      </group>
+      <PilotTracker />
+      <ChaseCamera groupTargetRef={pilotPosRef} />
     </>
   );
 }
@@ -138,113 +471,134 @@ function Scene({ progress }: { progress: MotionValue<number> }) {
 export default function DesignD() {
   const containerRef = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: containerRef });
-  const headingOpacity = useTransform(scrollYProgress, [0, 0.1], [1, 0]);
+  const headingOpacity = useTransform(scrollYProgress, [0, 0.12], [1, 0]);
+
+  const mouseRef = useRef<Mouse>({ x: 0, y: 0, active: false });
+
+  const onMove = (e: React.PointerEvent) => {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    mouseRef.current.x = (e.clientX / w) * 2 - 1;
+    mouseRef.current.y = -((e.clientY / h) * 2 - 1);
+    mouseRef.current.active = true;
+  };
+  const onLeave = () => {
+    mouseRef.current.active = false;
+  };
 
   return (
     <main
       ref={containerRef}
       className="relative min-h-screen text-white"
+      onPointerMove={onMove}
+      onPointerLeave={onLeave}
     >
-      {/* 3D canvas fixed behind */}
       <div className="pointer-events-none fixed inset-0 z-0">
-        <Canvas shadows camera={{ position: [0, 3, 10], fov: 55 }}>
+        <Canvas shadows camera={{ position: [0, 5, 12], fov: 55 }}>
           <Suspense fallback={null}>
-            <Scene progress={scrollYProgress} />
+            <Scene mouseRef={mouseRef} progress={scrollYProgress} />
           </Suspense>
         </Canvas>
       </div>
+
       <div className="relative z-10">
+        <header className="fixed top-0 inset-x-0 z-30">
+          <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5 text-sm sm:px-10">
+            <Link href="/" className="font-display font-bold tracking-tight">
+              {club.name}
+            </Link>
+            <span className="hidden text-xs uppercase tracking-[0.25em] text-white/70 sm:inline">
+              🖱️ Pilote avec la souris · scrolle pour avancer
+            </span>
+            <a
+              href="#contact"
+              className="rounded-full border border-white/30 px-4 py-2 backdrop-blur hover:bg-white/10"
+            >
+              Adhérer
+            </a>
+          </nav>
+        </header>
 
-      {/* Top nav */}
-      <header className="fixed top-0 inset-x-0 z-30">
-        <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5 text-sm sm:px-10">
-          <Link href="/" className="font-display font-bold tracking-tight">
-            {club.name}
-          </Link>
-          <span className="text-xs uppercase tracking-[0.25em] text-white/60">
-            ↓ Scrolle, tu voles ↓
-          </span>
-          <a
-            href="#contact"
-            className="rounded-full border border-white/30 px-4 py-2 backdrop-blur hover:bg-white/10"
-          >
-            Adhérer
-          </a>
-        </nav>
-      </header>
-
-      {/* Hero over 3D */}
-      <motion.section
-        style={{ opacity: headingOpacity }}
-        className="relative flex h-screen items-end px-6 pb-20 sm:px-10"
-      >
-        <div className="max-w-3xl">
-          <p className="text-xs uppercase tracking-[0.3em] text-white/70">
-            Parallailement · Vallée d&apos;Aure
-          </p>
-          <h1 className="mt-4 font-display text-6xl font-bold leading-[0.95] tracking-tight sm:text-8xl">
-            Le vol
-            <br />
-            commence
-            <br />
-            <span className="text-amber-300">ici.</span>
-          </h1>
-        </div>
-      </motion.section>
-
-      {/* Sections that appear while camera flies */}
-      <Section title="Le décollage" index="01">
-        Un déco local, face à la vallée d&apos;Aure. Ouvert aux adhérents. L&apos;atterrissage
-        est en cours de conventionnement — on en parle dès que c&apos;est signé.
-      </Section>
-
-      <Section title="Thermiques & grands vols" index="02">
-        Dans les Pyrénées, le relief joue pour nous. On apprend, on vole ensemble, on partage les
-        bons plans sur le groupe.
-      </Section>
-
-      <Section title={nextEvent.title} index="03">
-        {nextEvent.description} · {nextEvent.date}.
-      </Section>
-
-      <Section title="On rejoint ?" index="04">
-        Cotisation via HelloAsso, licence via la FFVL (n°{club.ffvl}). Le club est petit, on te
-        guide pas à pas.
-      </Section>
-
-      {/* Footer */}
-      <footer id="contact" className="relative border-t border-white/10 bg-[#0b1220]/80 backdrop-blur py-14">
-        <div className="mx-auto grid max-w-6xl gap-8 px-6 sm:grid-cols-3 sm:px-10">
-          <div>
-            <p className="font-display text-xl font-bold">{club.name}</p>
-            <p className="mt-3 text-sm text-white/70">{club.address}</p>
-            <p className="text-sm text-white/70">{club.phone}</p>
+        <motion.section
+          style={{ opacity: headingOpacity }}
+          className="relative flex h-screen items-end px-6 pb-20 sm:px-10"
+        >
+          <div className="max-w-3xl">
+            <p className="text-xs uppercase tracking-[0.3em] text-white/80">
+              Parallailement · Vallée d&apos;Aure
+            </p>
+            <h1 className="mt-4 font-display text-[16vw] font-bold leading-[0.95] tracking-tight sm:text-8xl">
+              Le vol
+              <br />
+              commence
+              <br />
+              <span className="text-amber-300">ici.</span>
+            </h1>
+            <p className="mt-6 text-white/80 sm:hidden">
+              👆 Balaye l&apos;écran pour piloter.
+            </p>
           </div>
-          <div className="text-sm">
-            <p className="text-[11px] uppercase tracking-[0.25em] text-white/50">Pratique</p>
-            <ul className="mt-3 space-y-1 text-white/70">
-              {highlights.map((h) => (
-                <li key={h.title}>{h.title}</li>
-              ))}
-            </ul>
+        </motion.section>
+
+        <Section title="Le décollage" index="01">
+          Un déco local, face à la vallée d&apos;Aure. Ouvert aux adhérents.
+          L&apos;atterrissage est en cours de conventionnement — on en parle dès que
+          c&apos;est signé.
+        </Section>
+
+        <Section title="Thermiques & grands vols" index="02">
+          Dans les Pyrénées, le relief joue pour nous. On apprend, on vole ensemble,
+          on partage les bons plans sur le groupe.
+        </Section>
+
+        <Section title={nextEvent.title} index="03">
+          {nextEvent.description} · {nextEvent.date}.
+        </Section>
+
+        <Section title="On rejoint ?" index="04">
+          Cotisation via HelloAsso, licence via la FFVL (n°{club.ffvl}). Le club est
+          petit, on te guide pas à pas.
+        </Section>
+
+        <footer
+          id="contact"
+          className="relative border-t border-white/10 bg-[#0b1220]/85 py-14 backdrop-blur"
+        >
+          <div className="mx-auto grid max-w-6xl gap-8 px-6 sm:grid-cols-3 sm:px-10">
+            <div>
+              <p className="font-display text-xl font-bold">{club.name}</p>
+              <p className="mt-3 text-sm text-white/70">{club.address}</p>
+              <p className="text-sm text-white/70">{club.phone}</p>
+            </div>
+            <div className="text-sm">
+              <p className="text-[11px] uppercase tracking-[0.25em] text-white/50">
+                Pratique
+              </p>
+              <ul className="mt-3 space-y-1 text-white/70">
+                {highlights.map((h) => (
+                  <li key={h.title}>{h.title}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="text-sm">
+              <p className="text-[11px] uppercase tracking-[0.25em] text-white/50">
+                Voir aussi
+              </p>
+              <ul className="mt-3 space-y-1 text-white/70">
+                <li>
+                  <Link href="/" className="underline">
+                    ← comparateur
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/design-e" className="underline">
+                    Design E
+                  </Link>
+                </li>
+              </ul>
+            </div>
           </div>
-          <div className="text-sm">
-            <p className="text-[11px] uppercase tracking-[0.25em] text-white/50">Voir aussi</p>
-            <ul className="mt-3 space-y-1 text-white/70">
-              <li>
-                <Link href="/" className="underline">
-                  ← comparateur
-                </Link>
-              </li>
-              <li>
-                <Link href="/design-e" className="underline">
-                  Design E
-                </Link>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </footer>
+        </footer>
       </div>
     </main>
   );

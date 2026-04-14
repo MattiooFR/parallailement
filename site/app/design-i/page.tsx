@@ -154,7 +154,7 @@ export default function DesignI() {
             <p className="text-[11px] uppercase tracking-[0.3em] text-white/80 drop-shadow">
               Parallailement · Vallée d&apos;Aure
             </p>
-            <h1 className="mt-4 font-serif text-7xl leading-[0.95] tracking-tight drop-shadow-2xl sm:text-[13vw]">
+            <h1 className="mt-4 font-serif text-[16vw] leading-[0.95] tracking-tight drop-shadow-2xl sm:text-[13vw]">
               <span className="block">Le ciel,</span>
               <span className="block italic">c&apos;est ici que ça se passe.</span>
             </h1>
