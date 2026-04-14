@@ -340,10 +340,10 @@ function Paraglider({
     if (inHero) {
       if (m.active) {
         targetX = m.x * 4.5;
-        targetY = 3.2 + m.y * 2.8;
+        targetY = 1.8 + m.y * 1.4;
       } else {
         targetX = Math.sin(clockT * 0.45) * 1.4;
-        targetY = 3.2 + Math.cos(clockT * 0.35) * 0.5;
+        targetY = 1.8 + Math.cos(clockT * 0.35) * 0.3;
       }
     } else {
       const scripted = sampleWander(p);
@@ -436,10 +436,10 @@ function ChaseCamera({
     const followMix = Math.min(1, Math.max(0, (p - 0.05) / 0.08));
     const followStrength = 0.85 - followMix * 0.55; // 0.85 → 0.30
 
-    tmp.current.set(t.x * followStrength, t.y + 1.7, t.z + 7.5);
+    tmp.current.set(t.x * followStrength, t.y + 1.4, t.z + 5.8);
     state.camera.position.lerp(tmp.current, 0.1);
 
-    lookTmp.current.set(t.x * followStrength * 0.8, t.y + 0.6, t.z - 4);
+    lookTmp.current.set(t.x * followStrength * 0.8, t.y + 0.7, t.z - 4);
     currentLook.current.lerp(lookTmp.current, 0.12);
     state.camera.lookAt(currentLook.current);
   });
