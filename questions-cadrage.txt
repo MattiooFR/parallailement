@@ -1,0 +1,85 @@
+QUESTIONS DE CADRAGE — site club de parapente
+==============================================
+
+Réponds en vrac sous chaque question, même partiellement. On s'en servira pour
+dimensionner le MVP Next.js et le schéma Supabase.
+
+
+--- QUESTIONS PRINCIPALES (10) ---
+
+1. Combien de décos / atterros le club gère-t-il ?
+   (conditionne la structure "Sites" : 1 page vs. N fiches + carte interactive)
+   >
+
+
+2. Une seule discipline (parapente) ou plusieurs ?
+   (deltaplane, speed riding, snowkite, vol à ski…)
+   >
+
+
+3. Y a-t-il une navette club ?
+   Si oui : juste afficher les tarifs, ou réservation en ligne ?
+   >
+
+
+4. Biplace club : flotte existante ? charte ?
+   Réservation en ligne souhaitée (calendrier + conditions d'accès) ?
+   >
+
+
+5. Événements récurrents à formaliser ?
+   (fête annuelle, marche-vol, compét, stages subventionnés…)
+   Combien, format, inscriptions payantes ?
+   >
+
+
+6. Espace membre privé dès le MVP ou en V2 ?
+   (docs AG, règlements, résas, cotisation payée, annuaire interne)
+   >
+
+
+7. Multilingue utile ?
+   (zone touristique internationale FR/EN/ES, ou 100 % FR)
+   >
+
+
+8. Balises météo / webcams propriétaires ?
+   Le club opère-t-il du hardware (Pioupiou, Reolink) à ingérer,
+   ou uniquement des liens externes ?
+   >
+
+
+9. HelloAsso déjà utilisé par le club pour les adhésions ?
+   Ou à mettre en place ? (sinon Stripe direct)
+   >
+
+
+10. Nom exact du club + n° FFVL + adresse + bureau actuel ?
+    (pour remplir l'ossature dès le départ)
+    >
+
+
+
+--- BONUS UTILES ---
+
+A. Budget / hébergement prévu ?
+   (Vercel gratuit suffit au début)
+   >
+
+
+B. Adhésions et cotisations gérées côté site (paiement + reçu fiscal CERFA)
+   ou 100 % externalisé sur HelloAsso ?
+   >
+
+
+C. Logo / identité visuelle existante ou à créer ?
+   >
+
+
+D. Qui mettra à jour le contenu (actus, événements) ?
+   → CMS nécessaire (Sanity, Payload) ou MDX en repo suffit ?
+   >
+
+
+E. Autre chose à savoir sur le club / les pratiques / les besoins spécifiques ?
+   >
