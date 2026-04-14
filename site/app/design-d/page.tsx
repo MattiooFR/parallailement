@@ -340,10 +340,10 @@ function Paraglider({
     if (inHero) {
       if (m.active) {
         targetX = m.x * 4.5;
-        targetY = 1.8 + m.y * 1.4;
+        targetY = 0.6 + m.y * 1.4;
       } else {
         targetX = Math.sin(clockT * 0.45) * 1.4;
-        targetY = 1.8 + Math.cos(clockT * 0.35) * 0.3;
+        targetY = 0.6 + Math.cos(clockT * 0.35) * 0.3;
       }
     } else {
       const scripted = sampleWander(p);
