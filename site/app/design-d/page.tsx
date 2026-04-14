@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useRef } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Stars, Line } from "@react-three/drei";
 import * as THREE from "three";
@@ -17,7 +17,7 @@ type Mouse = {
 };
 
 const LOOP_DURATION = 1.8; // seconds
-const PIVOT_Y = 2.0; // vertical offset (local Y) where the pilot group orbits — near the wing anchor.
+const PIVOT_Y = 2.85; // vertical offset (local Y) where the pilot group orbits — near the wing anchor.
 
 const smoothstep = (x: number) => {
   const t = Math.max(0, Math.min(1, x));
@@ -184,25 +184,35 @@ function Ground() {
 }
 
 // Wing geometry constants (reused by Lines())
-const WING_SPAN = 4.6;
-const WING_CHORD = 1.05;
-const WING_CELLS = 16;
-const WING_ARCH = 1.0;       // how high the center sits above the tips
-const WING_BASE_Y = 1.1;     // offset of wing tips above pilot origin
+const WING_SPAN = 4.8;
+const WING_CHORD = 1.1;
+const WING_CELLS = 16;       // distinct cells — visible but not blocky
+const WING_THICKNESS = 0.28;
+const WING_ARCH = 1.4;       // rounded dome
+const WING_BASE_Y = 2.1;     // offset of wing tips above pilot origin
 
 // Returns (y, z) of wing mid-line at normalized chord position tc in [-0.5, 0.5].
 function wingPoint(tc: number) {
-  // Arch: center HIGH, tips LOW.
-  const y = WING_BASE_Y + WING_ARCH * Math.cos(tc * Math.PI * 0.82);
-  // Slight forward sweep near the tips (tips advance a bit in front of the center).
-  const z = -Math.pow(Math.abs(tc * 2), 2) * 0.25;
+  // Elliptical arch — flat-ish middle, tips curve gently downward.
+  const norm = Math.abs(tc * 2); // 0 at center, 1 at tips
+  const arcShape = Math.sqrt(Math.max(0, 1 - norm * norm)); // quarter ellipse
+  const y = WING_BASE_Y + WING_ARCH * arcShape;
+  const z = -Math.pow(norm, 2) * 0.18;
   return { y, z };
+}
+
+function wingRoll(tc: number) {
+  // Cells at the tips tilt along the curve's tangent (derivative of an ellipse).
+  const norm = tc * 2; // -1..1
+  const denom = Math.sqrt(Math.max(0.001, 1 - norm * norm));
+  // Slope dy/dx of the ellipse, scaled down for a gentle visual bank.
+  const slope = (-norm / denom) * (WING_ARCH / (WING_SPAN / 2));
+  return Math.atan(slope) * 0.6;
 }
 
 function Wing() {
   const cells: React.ReactElement[] = [];
   const trailing: React.ReactElement[] = [];
-  const leading: React.ReactElement[] = [];
 
   for (let i = 0; i < WING_CELLS; i++) {
     const t = i / (WING_CELLS - 1);
@@ -210,44 +220,30 @@ function Wing() {
     const x = tc * WING_SPAN;
     const { y, z } = wingPoint(tc);
 
-    // Each cell is tangent to the arc — roll around Z so the chord follows the curve.
-    const roll = Math.sin(tc * Math.PI * 0.82) * 0.7;
+    const roll = wingRoll(tc);
 
-    // Color banding
+    // Color banding (warm tips, bright center).
     const abs = Math.abs(tc);
-    const color =
-      abs > 0.42 ? "#dc2626" : abs > 0.26 ? "#f59e0b" : "#fbbf24";
+    const color = abs > 0.42 ? "#dc2626" : abs > 0.26 ? "#f59e0b" : "#fbbf24";
 
-    const cellW = (WING_SPAN / WING_CELLS) * 0.96;
+    const cellW = (WING_SPAN / WING_CELLS) * 0.94;
 
     cells.push(
       <mesh key={"c" + i} position={[x, y, z]} rotation={[0, 0, roll]}>
-        <boxGeometry args={[cellW, 0.32, WING_CHORD]} />
+        <boxGeometry args={[cellW, WING_THICKNESS, WING_CHORD]} />
         <meshStandardMaterial color={color} flatShading roughness={0.55} />
       </mesh>,
     );
 
-    // Trailing edge — dark stripe along the back
+    // Trailing edge stripe
     trailing.push(
       <mesh
         key={"t" + i}
-        position={[x, y - 0.1, z - WING_CHORD / 2 + 0.03]}
-        rotation={[0, 0, roll]}
-      >
-        <boxGeometry args={[cellW, 0.1, 0.08]} />
-        <meshStandardMaterial color="#0f172a" />
-      </mesh>,
-    );
-
-    // Leading edge — slightly rounded
-    leading.push(
-      <mesh
-        key={"l" + i}
-        position={[x, y + 0.15, z + WING_CHORD / 2 - 0.04]}
+        position={[x, y - 0.08, z - WING_CHORD / 2 + 0.03]}
         rotation={[0, 0, roll]}
       >
         <boxGeometry args={[cellW, 0.08, 0.08]} />
-        <meshStandardMaterial color="#ffffff" />
+        <meshStandardMaterial color="#0f172a" />
       </mesh>,
     );
   }
@@ -256,7 +252,6 @@ function Wing() {
     <group>
       {cells}
       {trailing}
-      {leading}
     </group>
   );
 }
@@ -382,10 +377,12 @@ function Paraglider({
   mouseRef,
   progress,
   positionOutRef,
+  isMobile,
 }: {
   mouseRef: React.MutableRefObject<Mouse>;
   progress: MotionValue<number>;
   positionOutRef: React.MutableRefObject<THREE.Vector3>;
+  isMobile: boolean;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const pilotOrbitRef = useRef<THREE.Group>(null);
@@ -412,13 +409,16 @@ function Paraglider({
     let targetX: number;
     let targetY: number;
 
+    // Mobile: paraglider sits higher in the scene (so it lands higher on screen).
+    const baseY = isMobile ? 2.2 : 0.6;
+
     if (inHero) {
       if (m.active) {
         targetX = m.x * 4.5;
-        targetY = 0.6 + m.y * 1.4;
+        targetY = baseY + m.y * 1.4;
       } else {
         targetX = Math.sin(clockT * 0.45) * 1.4;
-        targetY = 0.6 + Math.cos(clockT * 0.35) * 0.3;
+        targetY = baseY + Math.cos(clockT * 0.35) * 0.3;
       }
     } else {
       const scripted = sampleWander(p);
@@ -515,9 +515,11 @@ function Paraglider({
 function ChaseCamera({
   groupTargetRef,
   progress,
+  isMobile,
 }: {
   groupTargetRef: React.MutableRefObject<THREE.Vector3>;
   progress: MotionValue<number>;
+  isMobile: boolean;
 }) {
   const tmp = useRef(new THREE.Vector3());
   const lookTmp = useRef(new THREE.Vector3());
@@ -525,12 +527,14 @@ function ChaseCamera({
   useFrame((state) => {
     const t = groupTargetRef.current;
     const p = progress.get();
-    // Hero (mini-game): camera tracks X closely → steering feels responsive.
-    // Sections (cinematic): camera tracks X loosely so the paraglider can exit / reappear.
     const followMix = Math.min(1, Math.max(0, (p - 0.05) / 0.08));
-    const followStrength = 0.85 - followMix * 0.55; // 0.85 → 0.30
+    const followStrength = 0.85 - followMix * 0.55;
 
-    tmp.current.set(t.x * followStrength, t.y + 1.4, t.z + 5.8);
+    // Mobile: pull the camera further back so the paraglider appears smaller.
+    const camZOffset = isMobile ? 9.5 : 5.8;
+    const camYOffset = isMobile ? 1.9 : 1.4;
+
+    tmp.current.set(t.x * followStrength, t.y + camYOffset, t.z + camZOffset);
     state.camera.position.lerp(tmp.current, 0.1);
 
     lookTmp.current.set(t.x * followStrength * 0.8, t.y + 0.7, t.z - 4);
@@ -574,9 +578,11 @@ function SkyGradient() {
 function Scene({
   mouseRef,
   progress,
+  isMobile,
 }: {
   mouseRef: React.MutableRefObject<Mouse>;
   progress: MotionValue<number>;
+  isMobile: boolean;
 }) {
   const pilotPosRef = useRef(new THREE.Vector3(0, 3, 0));
   const worldRef = useRef<THREE.Group>(null);
@@ -591,8 +597,17 @@ function Scene({
       <Ground />
       <WorldDecor groupRef={worldRef} />
       <WorldFlow groupRef={worldRef} pilotPosRef={pilotPosRef} />
-      <Paraglider mouseRef={mouseRef} progress={progress} positionOutRef={pilotPosRef} />
-      <ChaseCamera groupTargetRef={pilotPosRef} progress={progress} />
+      <Paraglider
+        mouseRef={mouseRef}
+        progress={progress}
+        positionOutRef={pilotPosRef}
+        isMobile={isMobile}
+      />
+      <ChaseCamera
+        groupTargetRef={pilotPosRef}
+        progress={progress}
+        isMobile={isMobile}
+      />
     </>
   );
 }
@@ -603,6 +618,14 @@ export default function DesignD() {
   const headingOpacity = useTransform(scrollYProgress, [0, 0.12], [1, 0]);
 
   const mouseRef = useRef<Mouse>({ x: 0, y: 0, active: false, loopToken: 0 });
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   const onMove = (e: React.PointerEvent) => {
     const w = window.innerWidth;
@@ -632,7 +655,7 @@ export default function DesignD() {
       <div className="pointer-events-none fixed inset-0 z-0">
         <Canvas shadows camera={{ position: [0, 5, 12], fov: 55 }}>
           <Suspense fallback={null}>
-            <Scene mouseRef={mouseRef} progress={scrollYProgress} />
+            <Scene mouseRef={mouseRef} progress={scrollYProgress} isMobile={isMobile} />
           </Suspense>
         </Canvas>
       </div>
