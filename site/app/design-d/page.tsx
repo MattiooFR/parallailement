@@ -186,7 +186,7 @@ function Ground() {
 // Wing geometry constants (reused by Lines())
 const WING_SPAN = 4.8;
 const WING_CHORD = 1.1;
-const WING_CELLS = 16;       // distinct cells — visible but not blocky
+const WING_CELLS = 26;       // distinct cells — visible but no gaps at the tips
 const WING_THICKNESS = 0.28;
 const WING_ARCH = 1.4;       // rounded dome
 const WING_BASE_Y = 2.1;     // offset of wing tips above pilot origin
@@ -226,7 +226,7 @@ function Wing() {
     const abs = Math.abs(tc);
     const color = abs > 0.42 ? "#dc2626" : abs > 0.26 ? "#f59e0b" : "#fbbf24";
 
-    const cellW = (WING_SPAN / WING_CELLS) * 0.94;
+    const cellW = (WING_SPAN / WING_CELLS) * 1.05;
 
     cells.push(
       <mesh key={"c" + i} position={[x, y, z]} rotation={[0, 0, roll]}>
