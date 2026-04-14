@@ -160,15 +160,15 @@ function WorldFlow({
     // Lateral drift: the world moves opposite to the paraglider's X — the pilot is steering.
     // Integrates over time so holding right actually turns you into new terrain.
     const pgX = pilotPosRef.current.x;
-    xDrift.current -= pgX * dt * 0.9;
+    xDrift.current -= pgX * dt * 2.5;
     // Wrap lateral drift so we don't grow unbounded.
     const wrap = WORLD_CYCLE;
     if (xDrift.current > wrap) xDrift.current -= wrap * 2;
     if (xDrift.current < -wrap) xDrift.current += wrap * 2;
     groupRef.current.position.x = xDrift.current;
 
-    // Slight yaw of the world to reinforce the steering feel.
-    const targetYaw = THREE.MathUtils.clamp(-pgX * 0.05, -0.25, 0.25);
+    // Yaw of the world to reinforce the steering feel.
+    const targetYaw = THREE.MathUtils.clamp(-pgX * 0.09, -0.4, 0.4);
     yawRef.current += (targetYaw - yawRef.current) * 0.06;
     groupRef.current.rotation.y = yawRef.current;
   });
@@ -382,9 +382,11 @@ const HIDE_TO = 0.20;
 function Paraglider({
   mouseRef,
   progress,
+  positionOutRef,
 }: {
   mouseRef: React.MutableRefObject<Mouse>;
   progress: MotionValue<number>;
+  positionOutRef: React.MutableRefObject<THREE.Vector3>;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const pilotOrbitRef = useRef<THREE.Group>(null);
@@ -466,6 +468,8 @@ function Paraglider({
 
     groupRef.current.position.copy(posRef.current);
     groupRef.current.visible = !hidden;
+    // Expose the live position to the parent (used by ChaseCamera and WorldFlow).
+    positionOutRef.current.copy(posRef.current);
 
     // Bank from lateral velocity
     const dx = posRef.current.x - prevPosRef.current.x;
@@ -576,17 +580,7 @@ function Scene({
   progress: MotionValue<number>;
 }) {
   const pilotPosRef = useRef(new THREE.Vector3(0, 3, 0));
-  const paraRef = useRef<THREE.Group>(null);
   const worldRef = useRef<THREE.Group>(null);
-
-  function PilotTracker() {
-    useFrame(() => {
-      if (paraRef.current) {
-        pilotPosRef.current.copy(paraRef.current.position);
-      }
-    });
-    return null;
-  }
 
   return (
     <>
@@ -598,10 +592,7 @@ function Scene({
       <Ground />
       <WorldDecor groupRef={worldRef} />
       <WorldFlow groupRef={worldRef} pilotPosRef={pilotPosRef} />
-      <group ref={paraRef}>
-        <Paraglider mouseRef={mouseRef} progress={progress} />
-      </group>
-      <PilotTracker />
+      <Paraglider mouseRef={mouseRef} progress={progress} positionOutRef={pilotPosRef} />
       <ChaseCamera groupTargetRef={pilotPosRef} progress={progress} />
     </>
   );
