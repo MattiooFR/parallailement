@@ -19,7 +19,10 @@ export const club = {
 export const site = {
   name: "Site de vol local",
   status: "En cours de conventionnement",
-  altitudeDeco: "env. 1300 m",
+  altitudeDeco: "1 450 m (véhicule) / 1 780 m (rando)",
+  decoVehicule: { altitude: "1 450", label: "Cabane de Collantigue" },
+  decoRando: { altitude: "1 780", label: "Sommet Pic de Montaut" },
+  atterrissage: { altitude: "620", label: "Ilhet, vallée d'Aure" },
   orientations: "à venir",
   note: "Décollage ouvert, atterrissage en cours de conventionnement.",
 };
