@@ -18,35 +18,66 @@ export const club = {
 
 export const site = {
   name: "Site de vol local",
-  status: "En cours de conventionnement",
+  status: "Pas encore conventionné",
   altitudeDeco: "1 450 m (véhicule) / 1 780 m (rando)",
   decoVehicule: { altitude: "1 450", label: "Cabane de Collantigue" },
   decoRando: { altitude: "1 780", label: "Sommet Pic de Montaut" },
   atterrissage: { altitude: "620", label: "Ilhet, vallée d'Aure" },
   orientations: "à venir",
-  note: "Décollage ouvert, atterrissage en cours de conventionnement.",
+  note: "Décollage pas encore conventionné — infos à jour partagées avec les membres.",
 };
 
 export const nextEvent = {
-  title: "Fête du club 2026",
-  date: "Été 2026",
+  title: "Ouverture de saison 2026",
+  date: "10 mai 2026",
   place: "Ilhet, vallée d'Aure",
   description:
-    "Retour de la fête annuelle — baptêmes biplace, repas partagé, et si le temps veut bien, un vol tous ensemble au coucher du soleil.",
+    "Premier rassemblement de l'année — reconnaissance du site, briefing aérologie locale, vols si la météo le permet.",
 };
+
+export const calendar = [
+  {
+    date: "2026-05-10",
+    label: "10 mai 2026",
+    title: "Ouverture de saison",
+    place: "Déco de Collantigue",
+    description:
+      "Premier rassemblement de l'année — reconnaissance du site, briefing aérologie locale, vols si la météo le permet.",
+  },
+  {
+    date: "2026-06-14",
+    label: "14 juin 2026",
+    title: "Stage Voler Mieux",
+    place: "Ilhet, vallée d'Aure",
+    description:
+      "Journée de perfectionnement encadrée, à la demande des membres. Reste à charge partagé entre participants.",
+  },
+  {
+    date: "2026-07-05",
+    label: "5 juillet 2026",
+    title: "Sortie cross-country",
+    place: "Vallée d'Aure",
+    description:
+      "Journée cross en petit groupe — départ du Pic de Montaut si les conditions sont réunies.",
+  },
+  {
+    date: "2026-09-20",
+    label: "20 septembre 2026",
+    title: "Assemblée générale",
+    place: "Salle des fêtes d'Ilhet",
+    description:
+      "Bilan de la saison, élection du bureau, projets pour 2027. Ouvert à tous les adhérents.",
+  },
+];
 
 export const highlights = [
   {
-    title: "Vol découverte",
-    body: "Biplaceurs fédéraux au sein du club. Envie de tester ? On organise des journées découverte ponctuelles.",
-  },
-  {
     title: "Stages Voler Mieux",
-    body: "Stages de perfectionnement à la demande des membres. Le reste à charge est partagé entre participants.",
+    body: "On met en place des stages de perfectionnement à la demande des membres, avec un reste à charge partagé entre participants.",
   },
   {
     title: "Compétitions",
-    body: "Participation à des manches régionales et événements amicaux, à notre rythme.",
+    body: "On prépare notre participation à des manches régionales et événements amicaux, à notre rythme.",
   },
 ];
 

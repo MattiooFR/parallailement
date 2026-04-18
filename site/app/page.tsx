@@ -1,251 +1,227 @@
-import { club, site, nextEvent, highlights } from "@/lib/content";
+import Link from "next/link";
+import { club, site, calendar, highlights } from "@/lib/content";
 
-const editorial = {
-  accent: "text-[#e5551f]",
-  accentBg: "bg-[#e5551f]",
-  paper: "bg-[#f5f2ec]",
-};
+const heroPhoto =
+  "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=2400&q=80";
+const sitePhoto =
+  "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=1600&q=80";
 
 export default function Home() {
   return (
-    <main className={`min-h-screen ${editorial.paper} text-neutral-950`}>
-      {/* Masthead */}
-      <header className="border-b border-neutral-950/20">
-        <div className="mx-auto flex max-w-[1400px] items-center justify-between px-6 py-4 sm:px-10">
-          <span
-            className="font-serif text-xl tracking-tight"
-            style={{ fontStyle: "italic" }}
-          >
-            Parallailement
-          </span>
-          <div className="hidden items-center gap-6 text-[11px] uppercase tracking-[0.25em] sm:flex">
-            <span>Vol libre</span>
-            <span>·</span>
-            <span>Ilhet&nbsp;·&nbsp;65</span>
-            <span>·</span>
-            <span>FFVL n°{club.ffvl}</span>
-          </div>
-          <a
-            href="#contact"
-            className="text-[11px] uppercase tracking-[0.25em] hover:underline"
-          >
-            Adhérer →
-          </a>
-        </div>
+    <main className="bg-stone-50 text-stone-900">
+      {/* Nav */}
+      <header className="absolute inset-x-0 top-0 z-20">
+        <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6 text-stone-50 sm:px-10">
+          <Link href="/" className="font-serif text-xl tracking-tight">
+            {club.name}
+          </Link>
+          <ul className="hidden gap-8 text-sm sm:flex">
+            {["Le club", "Voler", "Calendrier", "Contact"].map((l) => (
+              <li key={l} className="opacity-80 hover:opacity-100">
+                <a href="#">{l}</a>
+              </li>
+            ))}
+          </ul>
+        </nav>
       </header>
 
-      {/* ── Hero ── */}
-      <section className="border-b border-neutral-950/20">
-        <div className="mx-auto max-w-[1400px] px-6 sm:px-10">
-          <div className="grid gap-10 py-16 md:grid-cols-12 md:gap-6 md:py-24">
-            <div className="md:col-span-8">
-              <p className="text-[11px] uppercase tracking-[0.3em] text-neutral-600">
-                № 001 — Le club
-              </p>
-              <h1 className="mt-6 font-serif text-[15vw] font-black leading-[0.82] tracking-[-0.03em] md:text-[8.5vw]">
-                <span className="block">On vole</span>
-                <span className="block italic font-light">ensemble,</span>
-                <span className={`block ${editorial.accent}`}>
-                  et&nbsp;ça&nbsp;se&nbsp;sent.
-                </span>
-              </h1>
-            </div>
-            <aside className="md:col-span-4 md:border-l md:border-neutral-950/20 md:pl-6">
-              <p className="text-[11px] uppercase tracking-[0.25em] text-neutral-600">
-                L&apos;édito
-              </p>
-              <p className="mt-4 font-serif text-xl leading-snug">
-                Un club de vol libre niché au pied des Pyrénées, à&nbsp;Ilhet.
-                Petit, engagé, ouvert à toutes et&nbsp;tous.
-              </p>
-              <p className="mt-4 text-sm text-neutral-700">
-                {club.shortDescription}
-              </p>
-              <dl className="mt-8 space-y-3 border-t border-neutral-950/20 pt-6 text-sm">
-                <EditorialRow k="Affiliation" v={`FFVL n°${club.ffvl}`} />
-                <EditorialRow k="Siège" v={club.address} />
-                <EditorialRow
-                  k="Coordonnées"
-                  v={`${club.gps.lat.toFixed(4)}°N · ${club.gps.lng.toFixed(4)}°E`}
-                />
-                <EditorialRow
-                  k="Bureau"
-                  v={club.bureau.map((b) => b.name).join(" · ")}
-                />
-              </dl>
-            </aside>
+      {/* Hero */}
+      <section className="relative h-[95vh] min-h-[640px] overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: `url(${heroPhoto})` }}
+          aria-hidden
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-stone-950/50 via-stone-950/20 to-stone-950/80" />
+        <div className="relative z-10 mx-auto flex h-full max-w-7xl flex-col justify-end px-6 pb-20 sm:px-10">
+          <p className="text-xs uppercase tracking-[0.25em] text-stone-200/80">
+            Ilhet · Hautes-Pyrénées · FFVL n°{club.ffvl}
+          </p>
+          <h1 className="mt-4 max-w-4xl font-serif text-6xl leading-[0.95] text-stone-50 sm:text-8xl">
+            Voler&nbsp;là où les Pyrénées
+            <br />
+            <span className="italic">respirent.</span>
+          </h1>
+          <p className="mt-8 max-w-xl text-lg text-stone-200/90">
+            {club.shortDescription}
+          </p>
+          <div className="mt-10 flex flex-wrap gap-3">
+            <a
+              href="#site"
+              className="rounded-full bg-stone-50 px-6 py-3 text-stone-900 transition hover:bg-stone-200"
+            >
+              Le site de vol
+            </a>
           </div>
         </div>
       </section>
 
-      {/* ── Vidéo + Site de vol ── */}
-      <section className="border-b border-neutral-950/20">
-        <div className="mx-auto max-w-[1400px] px-6 py-16 sm:px-10">
-          <div className="grid gap-6 md:grid-cols-12">
-            <figure className="md:col-span-8">
-              <div className="overflow-hidden rounded-sm bg-neutral-900">
-                <div
-                  className="relative w-full"
-                  style={{ paddingBottom: "56.25%" }}
-                >
-                  <iframe
-                    className="absolute inset-0 h-full w-full"
-                    src="https://www.youtube.com/embed/ViVVVsYfMeI?rel=0&modestbranding=1"
-                    title="Parallailement — vol libre à Ilhet"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                </div>
+      {/* Intro / Chiffres */}
+      <section className="border-b border-stone-200 py-24">
+        <div className="mx-auto grid max-w-7xl gap-12 px-6 sm:px-10 md:grid-cols-[1fr_1.2fr]">
+          <p className="font-serif text-3xl leading-tight text-stone-700 sm:text-4xl">
+            Un club de vol libre jeune, basé en vallée d&apos;Aure. On cherche
+            d&apos;abord à voler ensemble, simplement.
+          </p>
+          <dl className="grid grid-cols-2 gap-8 sm:grid-cols-3">
+            {[
+              { k: "FFVL", v: `n°${club.ffvl}` },
+              { k: "Site principal", v: "1 décollage" },
+              { k: "Discipline", v: "Parapente" },
+              { k: "Altitude déco", v: site.altitudeDeco },
+              { k: "Fondé", v: club.founded },
+              { k: "Membres du bureau", v: `${club.bureau.length}` },
+            ].map((s) => (
+              <div key={s.k} className="border-t border-stone-300 pt-4">
+                <dt className="text-xs uppercase tracking-[0.2em] text-stone-500">
+                  {s.k}
+                </dt>
+                <dd className="mt-2 font-serif text-2xl">{s.v}</dd>
               </div>
-              <figcaption className="mt-3 flex items-baseline justify-between text-xs text-neutral-600">
-                <span className="italic">Fig. 01</span>
-                <span>Voler à Ilhet, vallée d&apos;Aure — Hautes-Pyrénées</span>
-              </figcaption>
-            </figure>
-            <div className="md:col-span-4">
-              <p className="text-[11px] uppercase tracking-[0.25em] text-neutral-600">
-                № 002 — Le site
-              </p>
-              <h2 className="mt-4 font-serif text-5xl font-black leading-[0.9]">
-                De 620
-                <br />
-                <span className="italic font-light">à 1&thinsp;780&nbsp;m</span>.
-              </h2>
-              <p className="mt-6 text-neutral-700">
-                Décollage accessible en véhicule jusqu&apos;à la cabane de
-                Collantigue, ou en rando jusqu&apos;au sommet du Pic de Montaut.
-                Atterrissage en vallée à Ilhet.
-              </p>
-              <dl className="mt-6 space-y-3 border-t border-neutral-950/20 pt-4 text-sm">
-                <EditorialRow
-                  k="Déco véhicule"
-                  v={`${site.decoVehicule.altitude} m — ${site.decoVehicule.label}`}
-                />
-                <EditorialRow
-                  k="Déco rando"
-                  v={`${site.decoRando.altitude} m — ${site.decoRando.label}`}
-                />
-                <EditorialRow
-                  k="Atterrissage"
-                  v={`${site.atterrissage.altitude} m — ${site.atterrissage.label}`}
-                />
-                <EditorialRow k="Orientations" v={site.orientations} />
-                <EditorialRow k="Atterro" v={`${site.status}*`} />
-              </dl>
-              <p className="mt-3 text-[11px] text-neutral-500">
-                * réservé aux adhérents pour le moment.
-              </p>
+            ))}
+          </dl>
+        </div>
+      </section>
+
+      {/* Site de vol */}
+      <section id="site" className="py-24">
+        <div className="mx-auto grid max-w-7xl gap-10 px-6 sm:px-10 md:grid-cols-2 md:gap-16">
+          <div
+            className="aspect-[4/5] rounded-2xl bg-cover bg-center shadow-xl"
+            style={{ backgroundImage: `url(${sitePhoto})` }}
+            aria-hidden
+          />
+          <div className="flex flex-col justify-center">
+            <p className="text-xs uppercase tracking-[0.25em] text-stone-500">
+              Le site
+            </p>
+            <h2 className="mt-3 font-serif text-5xl leading-tight">
+              Un décollage,
+              <br />
+              une vallée à explorer.
+            </h2>
+            <p className="mt-6 text-stone-600">
+              Situé près d&apos;Ilhet, notre décollage local offre une
+              aérologie de vallée pyrénéenne. Le décollage n&apos;est pas encore
+              conventionné — nous partageons les infos à jour avec les membres.
+            </p>
+            <div className="mt-8 space-y-3 text-sm text-stone-700">
+              <Row label="Altitude déco" value={site.altitudeDeco} />
+              <Row label="Orientations" value={site.orientations} />
+              <Row label="Déco" value={site.status} tag />
+              <Row
+                label="Coordonnées"
+                value={`${club.gps.lat.toFixed(4)}°N / ${club.gps.lng.toFixed(4)}°E`}
+              />
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── Activités ── */}
-      <section className="border-b border-neutral-950/20">
-        <div className="mx-auto max-w-[1400px] px-6 py-24 sm:px-10">
-          <div className="mb-10 flex items-baseline justify-between">
-            <h2 className="font-serif text-5xl font-black leading-none">
-              Au&nbsp;sommaire.
-            </h2>
-            <span className="text-[11px] uppercase tracking-[0.25em] text-neutral-600">
-              № 003 — Activités
-            </span>
+      {/* Vidéo */}
+      <section className="border-t border-stone-200 bg-stone-100 py-24">
+        <div className="mx-auto max-w-6xl px-6 sm:px-10">
+          <div className="flex items-baseline justify-between gap-6">
+            <h2 className="font-serif text-4xl sm:text-5xl">En vol.</h2>
+            <p className="text-xs uppercase tracking-[0.25em] text-stone-500">
+              Vallée d&apos;Aure
+            </p>
           </div>
-          <div className="grid gap-10 md:grid-cols-3 md:gap-0">
-            {highlights.map((h, i) => (
+          <figure className="mt-10">
+            <div
+              className="relative w-full overflow-hidden rounded-2xl bg-stone-900 shadow-xl"
+              style={{ paddingBottom: "56.25%" }}
+            >
+              <iframe
+                className="absolute inset-0 h-full w-full"
+                src="https://www.youtube.com/embed/ViVVVsYfMeI?rel=0&modestbranding=1"
+                title="Parallailement — vol libre à Ilhet"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+            <figcaption className="mt-4 flex items-baseline justify-between text-xs text-stone-500">
+              <span className="italic">Fig. 01</span>
+              <span>Voler à Ilhet — Hautes-Pyrénées</span>
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      {/* Highlights */}
+      <section className="border-y border-stone-200 bg-stone-100 py-24">
+        <div className="mx-auto max-w-7xl px-6 sm:px-10">
+          <h2 className="font-serif text-4xl sm:text-5xl">En préparation.</h2>
+          <p className="mt-6 max-w-3xl text-stone-600">
+            Plein de belles choses se préparent pour la saison. Voici quelques
+            pistes qu&apos;on explore avec les membres.
+          </p>
+          <div className="mt-12 grid gap-8 md:grid-cols-2">
+            {highlights.map((h) => (
               <article
                 key={h.title}
-                className="md:border-l md:border-neutral-950/20 md:px-6 md:first:border-l-0 md:first:pl-0 md:last:pr-0"
+                className="border-t border-stone-300 pt-6"
               >
-                <p className="font-serif text-4xl italic text-neutral-400">
-                  {String(i + 1).padStart(2, "0")}
+                <p className="text-xs uppercase tracking-[0.2em] text-stone-500">
+                  En préparation
                 </p>
-                <h3 className="mt-3 font-serif text-2xl font-black">
-                  {h.title}
-                </h3>
-                <p className="mt-4 text-neutral-700">{h.body}</p>
+                <h3 className="mt-2 font-serif text-2xl">{h.title}</h3>
+                <p className="mt-3 text-stone-600">{h.body}</p>
               </article>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── Événement ── */}
-      <section className="border-b border-neutral-950/20">
-        <div className="mx-auto max-w-[1400px] px-6 py-24 sm:px-10">
-          <div className="grid gap-6 md:grid-cols-12">
-            <div className="md:col-span-4">
-              <p className="text-[11px] uppercase tracking-[0.25em] text-neutral-600">
-                № 004 — Prochain rendez-vous
-              </p>
-              <p className="mt-4 font-serif text-lg">
-                La fête annuelle, c&apos;est l&apos;endroit où tout se passe —
-                vols, biplaces, assiettes partagées, lampions.
-              </p>
-            </div>
-            <div className="md:col-span-8">
-              <h2 className="font-serif text-[14vw] font-black leading-[0.82] tracking-[-0.03em] md:text-[8vw]">
-                {nextEvent.title}
-                <span className={`${editorial.accent} italic font-light`}>
-                  .
-                </span>
-              </h2>
-              <p className="mt-6 max-w-2xl text-neutral-700">
-                {nextEvent.description}
-              </p>
-              <div className="mt-8 flex flex-wrap items-center gap-6 text-sm">
-                <span>{nextEvent.date}</span>
-                <span className="h-4 w-px bg-neutral-950/30" />
-                <span>{nextEvent.place}</span>
-                <span className="h-4 w-px bg-neutral-950/30" />
-                <a
-                  href="#"
-                  className={`${editorial.accent} underline underline-offset-4 hover:no-underline`}
-                >
-                  S&apos;inscrire
-                </a>
-              </div>
-            </div>
+      {/* Calendrier */}
+      <section id="calendrier" className="py-24">
+        <div className="mx-auto max-w-7xl px-6 sm:px-10">
+          <div className="flex items-baseline justify-between gap-6">
+            <h2 className="font-serif text-4xl sm:text-5xl">Calendrier.</h2>
+            <p className="text-xs uppercase tracking-[0.25em] text-stone-500">
+              Saison 2026
+            </p>
           </div>
+          <ol className="mt-12 divide-y divide-stone-200 border-t border-stone-200">
+            {calendar.map((event) => (
+              <li
+                key={event.date}
+                className="grid gap-4 py-8 md:grid-cols-[200px_1fr_auto] md:items-baseline md:gap-10"
+              >
+                <time
+                  dateTime={event.date}
+                  className="font-serif text-xl text-stone-900"
+                >
+                  {event.label}
+                </time>
+                <div>
+                  <h3 className="font-serif text-2xl leading-tight">
+                    {event.title}
+                  </h3>
+                  <p className="mt-2 text-stone-600">{event.description}</p>
+                </div>
+                <p className="text-sm text-stone-500 md:text-right">
+                  {event.place}
+                </p>
+              </li>
+            ))}
+          </ol>
         </div>
       </section>
 
-      {/* ── Footer / Contact ── */}
-      <footer id="contact" className={`${editorial.accentBg} text-white`}>
-        <div className="mx-auto grid max-w-[1400px] gap-10 px-6 py-16 sm:px-10 md:grid-cols-12">
-          <div className="md:col-span-5">
-            <h2 className="font-serif text-6xl font-black leading-[0.9]">
-              Rejoindre
-              <br />
-              <span className="italic font-light">le club.</span>
-            </h2>
-            <p className="mt-4 max-w-sm text-white/80">
-              Cotisation via HelloAsso, licence via la FFVL. On te guide si tu
-              ne sais pas par où commencer.
-            </p>
-            <a
-              href="#"
-              className="mt-6 inline-flex items-center gap-2 border-b border-white pb-1 text-sm uppercase tracking-[0.25em] hover:border-white/0"
-            >
-              Adhérer via HelloAsso →
-            </a>
+      {/* Footer */}
+      <footer className="border-t border-stone-200 py-16">
+        <div className="mx-auto grid max-w-7xl gap-10 px-6 sm:grid-cols-2 sm:px-10">
+          <div>
+            <p className="font-serif text-2xl">{club.name}</p>
+            <p className="mt-3 text-sm text-stone-600">{club.address}</p>
+            <p className="text-sm text-stone-600">{club.phone}</p>
           </div>
-          <div className="md:col-span-4">
-            <p className="text-[11px] uppercase tracking-[0.25em] text-white/70">
-              Colophon
-            </p>
-            <ul className="mt-4 space-y-1 text-sm">
-              <li>{club.name}</li>
-              <li>{club.address}</li>
-              <li>{club.phone}</li>
-              <li>FFVL n°{club.ffvl}</li>
-            </ul>
-          </div>
-          <div className="md:col-span-3">
-            <p className="text-[11px] uppercase tracking-[0.25em] text-white/70">
+          <div className="text-sm">
+            <p className="text-xs uppercase tracking-[0.2em] text-stone-500">
               Contact
             </p>
-            <ul className="mt-4 space-y-1 text-sm">
+            <ul className="mt-3 space-y-1 text-stone-600">
               <li>{club.phone}</li>
               <li>{club.address}</li>
             </ul>
@@ -256,13 +232,26 @@ export default function Home() {
   );
 }
 
-function EditorialRow({ k, v }: { k: string; v: string }) {
+function Row({
+  label,
+  value,
+  tag,
+}: {
+  label: string;
+  value: string;
+  tag?: boolean;
+}) {
   return (
-    <div className="flex items-baseline justify-between gap-6 border-b border-neutral-950/10 pb-2">
-      <span className="text-[11px] uppercase tracking-[0.2em] text-neutral-600">
-        {k}
+    <div className="flex items-baseline justify-between border-b border-stone-200 py-2">
+      <span className="text-stone-500">{label}</span>
+      <span className="text-right">
+        {value}
+        {tag && (
+          <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
+            à venir
+          </span>
+        )}
       </span>
-      <span className="text-right">{v}</span>
     </div>
   );
 }
