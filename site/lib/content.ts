@@ -35,41 +35,6 @@ export const nextEvent = {
     "Premier rassemblement de l'année — reconnaissance du site, briefing aérologie locale, vols si la météo le permet.",
 };
 
-export const calendar = [
-  {
-    date: "2026-05-10",
-    label: "10 mai 2026",
-    title: "Ouverture de saison",
-    place: "Déco de Collantigue",
-    description:
-      "Premier rassemblement de l'année — reconnaissance du site, briefing aérologie locale, vols si la météo le permet.",
-  },
-  {
-    date: "2026-06-14",
-    label: "14 juin 2026",
-    title: "Stage Voler Mieux",
-    place: "Ilhet, vallée d'Aure",
-    description:
-      "Journée de perfectionnement encadrée, à la demande des membres. Reste à charge partagé entre participants.",
-  },
-  {
-    date: "2026-07-05",
-    label: "5 juillet 2026",
-    title: "Sortie cross-country",
-    place: "Vallée d'Aure",
-    description:
-      "Journée cross en petit groupe — départ du Pic de Montaut si les conditions sont réunies.",
-  },
-  {
-    date: "2026-09-20",
-    label: "20 septembre 2026",
-    title: "Assemblée générale",
-    place: "Salle des fêtes d'Ilhet",
-    description:
-      "Bilan de la saison, élection du bureau, projets pour 2027. Ouvert à tous les adhérents.",
-  },
-];
-
 export const highlights = [
   {
     title: "Stages Voler Mieux",

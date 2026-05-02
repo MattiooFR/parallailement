@@ -1,12 +1,14 @@
 import Link from "next/link";
-import { club, site, calendar, highlights } from "@/lib/content";
+import { club, site, highlights } from "@/lib/content";
+import { fetchCalendarEvents, formatEventDate } from "@/lib/calendar";
 
 const heroPhoto =
   "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=2400&q=80";
 const sitePhoto =
   "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=1600&q=80";
 
-export default function Home() {
+export default async function Home() {
+  const events = await fetchCalendarEvents();
   return (
     <main className="bg-stone-50 text-stone-900">
       {/* Nav */}
@@ -182,30 +184,46 @@ export default function Home() {
               Saison 2026
             </p>
           </div>
-          <ol className="mt-12 divide-y divide-stone-200 border-t border-stone-200">
-            {calendar.map((event) => (
-              <li
-                key={event.date}
-                className="grid gap-4 py-8 md:grid-cols-[200px_1fr_auto] md:items-baseline md:gap-10"
-              >
-                <time
-                  dateTime={event.date}
-                  className="font-serif text-xl text-stone-900"
-                >
-                  {event.label}
-                </time>
-                <div>
-                  <h3 className="font-serif text-2xl leading-tight">
-                    {event.title}
-                  </h3>
-                  <p className="mt-2 text-stone-600">{event.description}</p>
-                </div>
-                <p className="text-sm text-stone-500 md:text-right">
-                  {event.place}
-                </p>
-              </li>
-            ))}
-          </ol>
+          {events.length === 0 ? (
+            <p className="mt-12 border-t border-stone-200 pt-8 text-stone-600">
+              Pas d&apos;événement programmé pour le moment. Reviens bientôt —
+              on prépare la saison.
+            </p>
+          ) : (
+            <ol className="mt-12 divide-y divide-stone-200 border-t border-stone-200">
+              {events.map((event) => {
+                const { iso, label } = formatEventDate(event);
+                return (
+                  <li
+                    key={event.uid || `${iso}-${event.title}`}
+                    className="grid gap-4 py-8 md:grid-cols-[260px_1fr_auto] md:items-baseline md:gap-10"
+                  >
+                    <time
+                      dateTime={iso}
+                      className="font-serif text-xl text-stone-900"
+                    >
+                      {label}
+                    </time>
+                    <div>
+                      <h3 className="font-serif text-2xl leading-tight">
+                        {event.title}
+                      </h3>
+                      {event.description && (
+                        <p className="mt-2 whitespace-pre-line text-stone-600">
+                          {event.description}
+                        </p>
+                      )}
+                    </div>
+                    {event.location && (
+                      <p className="text-sm text-stone-500 md:text-right">
+                        {event.location}
+                      </p>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          )}
         </div>
       </section>
 
