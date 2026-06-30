@@ -35,6 +35,41 @@ export const nextEvent = {
     "Premier rassemblement de l'année — reconnaissance du site, briefing aérologie locale, vols si la météo le permet.",
 };
 
+export const photos = {
+  site: "/photos/deco-collantigue.jpg",
+};
+
+export const salleDePliage = {
+  eyebrow: "L'intendance",
+  title: "Une salle de pliage,\nau chaud.",
+  body: "Quand la météo hésite ou qu'il faut replier au sec, on a de quoi étaler les voiles à l'abri. Celle de la photo, c'est la grande salle de la mairie d'Ilhet — un bel espace qui accueille aussi des expositions (sculptures de marbre, artisans pyrénéens), mis à disposition quand il est libre. Et s'il est déjà pris, on a une salle de repli, plus modeste, mais qui fait très bien le job.",
+  photo: "/photos/salle-pliage.jpg",
+  alt: "La grande salle de la mairie d'Ilhet : une voile au sol prête à être pliée, parmi des sculptures de marbre exposées.",
+};
+
+export const gallery = [
+  {
+    src: "/photos/vol-orange.jpg",
+    alt: "Parapente orange en vol au-dessus de la vallée d'Aure verdoyante.",
+    caption: "En vol au-dessus de la vallée",
+  },
+  {
+    src: "/photos/voile-prairie.jpg",
+    alt: "Voile blanche posée dans l'herbe d'estive, panorama des Pyrénées en arrière-plan.",
+    caption: "Voile au sol, ligne de crête",
+  },
+  {
+    src: "/photos/duo-noir-blanc.jpg",
+    alt: "Deux parapentes en vol au-dessus de sommets enneigés, photo en noir et blanc.",
+    caption: "À deux, au-dessus des sommets",
+  },
+  {
+    src: "/photos/lever-soleil.jpg",
+    alt: "Lever de soleil sur une mer de nuages, sommets enneigés des Pyrénées au loin.",
+    caption: "Lever de soleil sur la mer de nuages",
+  },
+];
+
 export const highlights = [
   {
     title: "Stages Voler Mieux",

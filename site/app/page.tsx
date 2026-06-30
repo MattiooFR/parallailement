@@ -1,11 +1,18 @@
 import Link from "next/link";
-import { club, site, highlights } from "@/lib/content";
+import Image from "next/image";
+import {
+  club,
+  site,
+  highlights,
+  photos,
+  salleDePliage,
+  gallery,
+} from "@/lib/content";
 import { fetchCalendarEvents, formatEventDate } from "@/lib/calendar";
 
 const heroPhoto =
   "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=2400&q=80";
-const sitePhoto =
-  "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=1600&q=80";
+const sitePhoto = photos.site;
 
 export default async function Home() {
   const events = await fetchCalendarEvents();
@@ -120,6 +127,27 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* Salle de pliage */}
+      <section className="border-t border-stone-200 bg-stone-100 py-24">
+        <div className="mx-auto grid max-w-7xl gap-10 px-6 sm:px-10 md:grid-cols-2 md:gap-16">
+          <div
+            className="aspect-[4/3] rounded-2xl bg-cover bg-center shadow-xl md:order-2"
+            style={{ backgroundImage: `url(${salleDePliage.photo})` }}
+            role="img"
+            aria-label={salleDePliage.alt}
+          />
+          <div className="flex flex-col justify-center md:order-1">
+            <p className="text-xs uppercase tracking-[0.25em] text-stone-500">
+              {salleDePliage.eyebrow}
+            </p>
+            <h2 className="mt-3 whitespace-pre-line font-serif text-5xl leading-tight">
+              {salleDePliage.title}
+            </h2>
+            <p className="mt-6 text-stone-600">{salleDePliage.body}</p>
+          </div>
+        </div>
+      </section>
+
       {/* Vidéo */}
       <section className="border-t border-stone-200 bg-stone-100 py-24">
         <div className="mx-auto max-w-6xl px-6 sm:px-10">
@@ -147,6 +175,47 @@ export default async function Home() {
               <span>Voler à Ilhet — Hautes-Pyrénées</span>
             </figcaption>
           </figure>
+        </div>
+      </section>
+
+      {/* Galerie */}
+      <section className="py-24">
+        <div className="mx-auto max-w-7xl px-6 sm:px-10">
+          <div className="flex items-baseline justify-between gap-6">
+            <h2 className="font-serif text-4xl sm:text-5xl">En images.</h2>
+            <p className="text-xs uppercase tracking-[0.25em] text-stone-500">
+              Hautes-Pyrénées
+            </p>
+          </div>
+          <div className="mt-10 grid gap-4 sm:grid-cols-3">
+            {gallery.map((photo, i) => (
+              <figure
+                key={photo.src}
+                className={i === 0 ? "sm:col-span-3" : ""}
+              >
+                <div
+                  className={`relative overflow-hidden rounded-2xl bg-stone-200 shadow-sm ${
+                    i === 0 ? "aspect-[3/2] sm:aspect-[2/1]" : "aspect-[4/3]"
+                  }`}
+                >
+                  <Image
+                    src={photo.src}
+                    alt={photo.alt}
+                    fill
+                    sizes={
+                      i === 0
+                        ? "(min-width: 1280px) 1216px, 100vw"
+                        : "(min-width: 1280px) 400px, (min-width: 640px) 33vw, 100vw"
+                    }
+                    className="object-cover"
+                  />
+                </div>
+                <figcaption className="mt-3 text-xs text-stone-500">
+                  {photo.caption}
+                </figcaption>
+              </figure>
+            ))}
+          </div>
         </div>
       </section>
 
