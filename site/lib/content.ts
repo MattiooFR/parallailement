@@ -50,23 +50,23 @@ export const salleDePliage = {
 export const gallery = [
   {
     src: "/photos/vol-orange.jpg",
-    alt: "Parapente orange en vol au-dessus de la vallée d'Aure verdoyante.",
-    caption: "En vol au-dessus de la vallée",
+    alt: "Parapente orange en vol dans la vallée d'Aure, vue dégagée sur la plaine.",
+    caption: "En vol dans la vallée, vue dégagée sur la plaine",
   },
   {
     src: "/photos/voile-prairie.jpg",
-    alt: "Voile blanche posée dans l'herbe d'estive, panorama des Pyrénées en arrière-plan.",
-    caption: "Voile au sol, ligne de crête",
+    alt: "Voile blanche posée au décollage après un vol, panorama de la vallée d'Aure en arrière-plan.",
+    caption: "Repos au décollage, après un tour de vallée",
   },
   {
     src: "/photos/duo-noir-blanc.jpg",
-    alt: "Deux parapentes en vol au-dessus de sommets enneigés, photo en noir et blanc.",
-    caption: "À deux, au-dessus des sommets",
+    alt: "Vol hivernal à deux au-dessus des sommets enneigés, photo en noir et blanc.",
+    caption: "Vol hivernal à deux, au-dessus des sommets",
   },
   {
     src: "/photos/lever-soleil.jpg",
-    alt: "Lever de soleil sur une mer de nuages, sommets enneigés des Pyrénées au loin.",
-    caption: "Lever de soleil sur la mer de nuages",
+    alt: "Soleil bas d'hiver de fin de journée à l'ouest, au-dessus d'une couche d'inversion très marquée sur la vallée.",
+    caption: "Soleil bas d'hiver à l'ouest, sous une couche d'inversion marquée",
   },
 ];
 
