@@ -1,14 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Map as MapLibreMap,
   Marker,
   NavigationControl,
   Popup,
 } from "maplibre-gl";
-import { stagesToGeoJson } from "@/lib/stage-map";
+import {
+  getStageMapPopupItems,
+  STAGE_MAP_PREVIEW_LIMIT,
+  stagesToGeoJson,
+} from "@/lib/stage-map";
 import type { Stage } from "@/lib/stages";
+import { StageMapDetailSheet } from "./stage-map-detail-sheet";
 
 const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
   day: "numeric",
@@ -27,8 +32,13 @@ export function StageMapView({ stages }: { stages: Stage[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef<Marker[]>([]);
+  const [selectedStageId, setSelectedStageId] = useState<string | null>(null);
   const data = useMemo(() => stagesToGeoJson(stages), [stages]);
   const mappedCount = data.features.length;
+  const selectedStage = useMemo(
+    () => stages.find((stage) => stage.id === selectedStageId) ?? null,
+    [selectedStageId, stages],
+  );
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -86,34 +96,87 @@ export function StageMapView({ stages }: { stages: Stage[] }) {
         "aria-label",
         `${features.length} stage${features.length > 1 ? "s" : ""} à ${features[0].properties.location}`,
       );
+      button.addEventListener("click", () => {
+        const verticalOffset = Math.min(
+          map.getContainer().clientHeight * 0.3,
+          160,
+        );
+        map.easeTo({
+          center: [longitude, latitude],
+          duration: 300,
+          offset: [0, verticalOffset],
+        });
+      });
 
       const wrapper = document.createElement("div");
       wrapper.className = "stage-map-popup";
       const place = document.createElement("strong");
       place.textContent = `${features[0].properties.location} · ${features[0].properties.country}`;
-      wrapper.append(place);
-      for (const feature of features.slice(0, 6)) {
-        const item = document.createElement("div");
-        item.className = "stage-map-popup__item";
-        const link = document.createElement("a");
-        link.href = feature.properties.sourceUrl;
-        link.target = "_blank";
-        link.rel = "noreferrer";
-        link.textContent = feature.properties.title;
-        const dates = document.createElement("span");
-        dates.textContent = dateRange(
-          feature.properties.startDate,
-          feature.properties.endDate,
+      const list = document.createElement("div");
+      list.className = "stage-map-popup__list";
+      const controls = document.createElement("div");
+      controls.className = "stage-map-popup__controls";
+      wrapper.append(place, list, controls);
+
+      const renderItems = (expanded: boolean) => {
+        const { visibleItems, hiddenCount } = getStageMapPopupItems(
+          features,
+          expanded,
         );
-        item.append(link, dates);
-        wrapper.append(item);
-      }
-      if (features.length > 6) {
-        const more = document.createElement("span");
-        more.textContent = `+ ${features.length - 6} autres dates à ce lieu`;
-        wrapper.append(more);
-      }
-      const popup = new Popup({ offset: 18, maxWidth: "22rem" }).setDOMContent(wrapper);
+        wrapper.classList.toggle("stage-map-popup--expanded", expanded);
+        list.replaceChildren();
+        controls.replaceChildren();
+
+        for (const feature of visibleItems) {
+          const item = document.createElement("button");
+          item.type = "button";
+          item.className = "stage-map-popup__item";
+          item.dataset.stageId = feature.properties.id;
+          item.setAttribute(
+            "aria-label",
+            `Voir la fiche de ${feature.properties.title}, ${dateRange(feature.properties.startDate, feature.properties.endDate)}`,
+          );
+          const title = document.createElement("span");
+          title.className = "stage-map-popup__title";
+          title.textContent = feature.properties.title;
+          const dates = document.createElement("span");
+          dates.className = "stage-map-popup__dates";
+          dates.textContent = dateRange(
+            feature.properties.startDate,
+            feature.properties.endDate,
+          );
+          item.append(title, dates);
+          item.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setSelectedStageId(feature.properties.id);
+          });
+          list.append(item);
+        }
+
+        if (features.length > STAGE_MAP_PREVIEW_LIMIT) {
+          const toggle = document.createElement("button");
+          toggle.type = "button";
+          toggle.className = "stage-map-popup__toggle";
+          toggle.setAttribute("aria-expanded", String(expanded));
+          toggle.textContent = expanded
+            ? "Réduire la liste"
+            : `Voir les ${hiddenCount} autres dates`;
+          toggle.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            renderItems(!expanded);
+          });
+          controls.append(toggle);
+        }
+      };
+
+      renderItems(false);
+      const popup = new Popup({
+        anchor: "bottom",
+        offset: 18,
+        maxWidth: "24rem",
+      }).setDOMContent(wrapper);
 
       return new Marker({ element: button, anchor: "center" })
         .setLngLat([longitude, latitude])
@@ -137,6 +200,12 @@ export function StageMapView({ stages }: { stages: Stage[] }) {
         className="h-[68vh] min-h-[32rem] w-full overflow-hidden rounded-sm border border-stone-300 bg-stone-200"
         aria-label="Carte des stages de parapente"
       />
+      {selectedStage && (
+        <StageMapDetailSheet
+          stage={selectedStage}
+          onClose={() => setSelectedStageId(null)}
+        />
+      )}
     </div>
   );
 }

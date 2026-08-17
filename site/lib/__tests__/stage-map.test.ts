@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { stagesToGeoJson } from "../stage-map";
+import { getStageMapPopupItems, stagesToGeoJson } from "../stage-map";
 import type { Stage } from "../stage-data";
 
 const base = {
@@ -32,5 +32,38 @@ describe("stagesToGeoJson", () => {
         endDate: "2026-09-06",
       },
     });
+  });
+});
+
+describe("getStageMapPopupItems", () => {
+  const collection = stagesToGeoJson(
+    Array.from({ length: 20 }, (_, index) => ({
+      ...base,
+      id: `stage-${index}`,
+      startDate: `2026-09-${String(20 - index).padStart(2, "0")}`,
+      endDate: `2026-09-${String(20 - index).padStart(2, "0")}`,
+    })),
+  );
+
+  it("shows six dates first and reports how many dates can still be opened", () => {
+    const result = getStageMapPopupItems(collection.features, false);
+
+    expect(result.visibleItems).toHaveLength(6);
+    expect(result.hiddenCount).toBe(14);
+    expect(result.visibleItems.map((item) => item.properties.startDate)).toEqual([
+      "2026-09-01",
+      "2026-09-02",
+      "2026-09-03",
+      "2026-09-04",
+      "2026-09-05",
+      "2026-09-06",
+    ]);
+  });
+
+  it("returns every date when the place list is expanded", () => {
+    const result = getStageMapPopupItems(collection.features, true);
+
+    expect(result.visibleItems).toHaveLength(20);
+    expect(result.hiddenCount).toBe(0);
   });
 });
