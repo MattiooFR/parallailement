@@ -20,9 +20,7 @@ export function buildMonthGrid(month: string) {
 }
 
 export function stagesOnDate(stages: Stage[], date: string) {
-  return stages.filter(
-    (stage) => stage.startDate <= date && stage.endDate >= date,
-  );
+  return stages.filter((stage) => stage.startDate === date);
 }
 
 export function shiftMonth(month: string, amount: number) {

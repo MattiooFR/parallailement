@@ -20,10 +20,10 @@ describe("buildMonthGrid", () => {
 });
 
 describe("stagesOnDate", () => {
-  it("keeps a multi-day stage visible on every covered day", () => {
+  it("keeps a multi-day stage visible only on its start date", () => {
     expect(stagesOnDate([stage], "2026-09-02")).toEqual([]);
     expect(stagesOnDate([stage], "2026-09-03")).toEqual([stage]);
-    expect(stagesOnDate([stage], "2026-09-05")).toEqual([stage]);
+    expect(stagesOnDate([stage], "2026-09-05")).toEqual([]);
     expect(stagesOnDate([stage], "2026-09-07")).toEqual([]);
   });
 });
