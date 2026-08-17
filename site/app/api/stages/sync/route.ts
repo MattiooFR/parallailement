@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { isStageDatabaseConfigured } from "@/lib/stage-repository";
 import { runStageSync, verifyCronAuthorization } from "@/lib/stage-sync";
 
 export const runtime = "nodejs";
@@ -14,13 +13,6 @@ export async function GET(request: Request) {
     )
   ) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
-  }
-
-  if (!isStageDatabaseConfigured()) {
-    return NextResponse.json(
-      { error: "Supabase stages n’est pas configuré" },
-      { status: 503 },
-    );
   }
 
   try {
