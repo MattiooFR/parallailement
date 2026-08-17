@@ -200,7 +200,7 @@ export function parseFrenchDate(value: string): string | null {
 
 export function inferStageDiscipline(title: string): StageDiscipline {
   const value = normalizeText(title);
-  if (/\b(siv|pilotage|securite pilotage|zero turbulence)\b/.test(value)) {
+  if (/\b(siv|siku|pilotage|securite pilotage|zero turbulence)\b/.test(value)) {
     return "SIV / Pilotage";
   }
   if (/\b(cross|distance|bpc)\b/.test(value)) return "Cross";
@@ -210,7 +210,11 @@ export function inferStageDiscipline(title: string): StageDiscipline {
   if (/\b(thermiques?|ascendances?|restitution)\b/.test(value)) {
     return "Thermique";
   }
-  if (/\b(biplace|qbi|accompagnateur|moniteur|qualification|bp\/?bpc)\b/.test(value)) {
+  if (
+    /\b(biplace|qbi|accompagnateur|moniteur|qualification|bp\/?bpc|club coach|coach course)\b/.test(
+      value,
+    )
+  ) {
     return "Qualification";
   }
   if (/\b(initiation|debutant|decouverte|premiers vols?)\b/.test(value)) {

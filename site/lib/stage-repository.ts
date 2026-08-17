@@ -236,6 +236,16 @@ export async function persistStageSync({
 
   const { createAdminSupabaseClient } = await import("./supabase/admin");
   const supabase = createAdminSupabaseClient();
+  const existingSourcesResponse = await supabase
+    .from("stage_sources")
+    .select("id,consecutive_failures");
+  if (existingSourcesResponse.error) throw existingSourcesResponse.error;
+  const previousFailures = new Map(
+    (existingSourcesResponse.data ?? []).map((row) => [
+      String(row.id),
+      Number(row.consecutive_failures ?? 0),
+    ]),
+  );
   const sourceRows = results.map((result) => {
     const firstStage = result.stages[0];
     return {
@@ -248,7 +258,10 @@ export async function persistStageSync({
       default_language: firstStage?.language ?? null,
       state: result.source.state,
       stage_count: result.source.stageCount,
-      consecutive_failures: result.source.state === "ok" ? 0 : 1,
+      consecutive_failures:
+        result.source.state === "ok"
+          ? 0
+          : (previousFailures.get(result.source.id) ?? 0) + 1,
       last_checked_at: checkedAt,
       ...(result.source.state === "ok" ? { last_success_at: checkedAt } : {}),
       updated_at: checkedAt,
@@ -307,4 +320,32 @@ export async function persistStageSync({
   );
   const failedUpdate = updateResponses.find((response) => response.error);
   if (failedUpdate?.error) throw failedUpdate.error;
+}
+
+export async function recordStageSyncRun({
+  checkedAt,
+  summary,
+}: {
+  checkedAt: string;
+  summary: {
+    state: "ok" | "partial" | "failed";
+    sourceCount: number;
+    successfulSources: number;
+    failedSources: number;
+    stageCount: number;
+  };
+}) {
+  if (!isStageDatabaseConfigured()) return;
+  const { createAdminSupabaseClient } = await import("./supabase/admin");
+  const supabase = createAdminSupabaseClient();
+  const response = await supabase.from("stage_sync_runs").insert({
+    started_at: checkedAt,
+    finished_at: new Date().toISOString(),
+    state: summary.state,
+    source_count: summary.sourceCount,
+    successful_sources: summary.successfulSources,
+    failed_sources: summary.failedSources,
+    stage_count: summary.stageCount,
+  });
+  if (response.error) throw response.error;
 }

@@ -100,6 +100,24 @@ create index if not exists stages_coordinates_idx
 create index if not exists stage_sources_active_idx
   on public.stage_sources (active, state);
 
+create or replace function public.preserve_stage_first_seen()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if tg_op = 'UPDATE' then
+    new.first_seen_at := old.first_seen_at;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists stages_preserve_first_seen on public.stages;
+create trigger stages_preserve_first_seen
+before update on public.stages
+for each row execute function public.preserve_stage_first_seen();
+
 alter table public.stage_sources enable row level security;
 alter table public.stage_locations enable row level security;
 alter table public.stages enable row level security;
@@ -109,9 +127,11 @@ revoke all on table public.stage_sources from anon, authenticated;
 revoke all on table public.stage_locations from anon, authenticated;
 revoke all on table public.stages from anon, authenticated;
 revoke all on table public.stage_sync_runs from anon, authenticated;
+revoke all on function public.preserve_stage_first_seen() from public, anon, authenticated;
 
 grant all on table public.stage_sources to service_role;
 grant all on table public.stage_locations to service_role;
 grant all on table public.stages to service_role;
 grant all on table public.stage_sync_runs to service_role;
+grant execute on function public.preserve_stage_first_seen() to service_role;
 grant usage, select on sequence public.stage_sync_runs_id_seq to service_role;

@@ -19,6 +19,7 @@ const bricolage = Bricolage_Grotesque({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://parallailement.fr"),
   title: "Parallailement — Club de parapente, vallée d'Aure",
   description:
     "Club de vol libre parapente basé à Ilhet (65), vallée d'Aure, Hautes-Pyrénées.",

@@ -27,7 +27,7 @@ export default async function Home() {
           <ul className="hidden gap-8 text-sm sm:flex">
             {["Le club", "Voler", "Calendrier", "Contact"].map((l) => (
               <li key={l} className="opacity-80 hover:opacity-100">
-                <a href="#">{l}</a>
+                <a href={l === "Calendrier" ? "#calendrier" : "#"}>{l}</a>
               </li>
             ))}
           </ul>
