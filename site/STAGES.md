@@ -2,13 +2,11 @@
 
 La route `/stages` agrège les calendriers publics d’écoles, clubs, ligues et fédérations de parapente. Le catalogue couvre les stages en France, les organisateurs européens et leurs voyages hors d’Europe. Il propose une liste, un calendrier et une carte qui partagent les mêmes filtres.
 
-En production, une tâche Vercel appelle `/api/stages/sync` toutes les heures. Elle collecte les sources avec isolation des pannes, normalise les résultats puis les enregistre dans Supabase. Une source en panne ne supprime pas immédiatement ses stages : ils restent actifs jusqu’à deux collectes réussies consécutives sans résultat. Sans configuration Supabase, la page utilise les flux directs avec un cache Next.js d’une heure.
+En production, une tâche Vercel appelle `/api/stages/sync` toutes les heures. Elle collecte les sources avec isolation des pannes, normalise les résultats puis les enregistre dans la base. Une source en panne ne supprime pas immédiatement ses stages : ils restent actifs jusqu’à deux collectes réussies consécutives sans résultat. Sans configuration Supabase, la page utilise les flux directs avec un cache Next.js d’une heure.
 
-## Accès privé temporaire
+## Accès réservé aux membres
 
-La page n’est reliée à aucune autre page du site et déclare `noindex, nofollow`. Son contenu est protégé côté serveur par `STAGES_PASSWORD` ; le navigateur ne reçoit jamais ce mot de passe. Après validation, un cookie signé, `HttpOnly`, limité au chemin `/stages` et valable 12 heures ouvre l’accès. Modifier `STAGES_PASSWORD` invalide immédiatement les sessions existantes.
-
-En production, définir `STAGES_PASSWORD` dans les variables d’environnement de l’hébergement avant le déploiement. Sans secret d’au moins 12 caractères, la page reste verrouillée. La route envoie aussi `X-Robots-Tag: noindex, nofollow, noarchive, nosnippet` et n’est reliée à aucune page du site.
+La page déclare `noindex, nofollow` et envoie `X-Robots-Tag: noindex, nofollow, noarchive, nosnippet`. Seuls les membres validés qui ont le droit « voit les stages » (ou les admins) y accèdent : un visiteur est renvoyé vers `/connexion`, un membre sans ce droit voit une page « Accès réservé ». Les droits se donnent dans `/admin/membres` (voir `MEMBRES.md`).
 
 ## Collecte et sources
 
@@ -41,8 +39,7 @@ Les pages BookAndGlide ne publient généralement que les stages encore réserva
 
 ## Variables de production
 
-- `STAGES_PASSWORD` : mot de passe privé de la page ;
 - `CRON_SECRET` : clé Bearer de la tâche horaire ;
-- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` et `SUPABASE_SERVICE_ROLE_KEY` : accès Supabase.
+- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` et `SUPABASE_SERVICE_ROLE_KEY` : accès à la base `appdb-parallailement` du Hetzner (`https://db.parallailement.fr`).
 
 La migration `supabase/migrations/202608150001_stages_catalog.sql` active RLS sur toutes les tables, révoque `anon` et `authenticated`, et réserve les écritures et lectures au `service_role` côté serveur.

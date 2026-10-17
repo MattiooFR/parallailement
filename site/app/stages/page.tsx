@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { club } from "@/lib/content";
-import { hasStagesAccess } from "@/lib/stages-auth";
+import { redirect } from "next/navigation";
+import { canViewStages } from "@/lib/access";
+import { getCurrentProfile } from "@/lib/auth";
 import { getStagesFeed } from "@/lib/stages";
-import { lockStages } from "./actions";
-import { StagesPasswordGate } from "./password-gate";
+import { StagesAccessGate } from "./access-gate";
 import { StageList } from "./stage-list";
-
-export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: "Accès privé — Parallailement",
@@ -22,12 +21,6 @@ export const metadata: Metadata = {
       noimageindex: true,
     },
   },
-};
-
-type StagesPageProps = {
-  searchParams: Promise<{
-    erreur?: string | string[];
-  }>;
 };
 
 const frenchDateTime = new Intl.DateTimeFormat("fr-FR", {
@@ -61,21 +54,10 @@ function WindMark() {
   );
 }
 
-export default async function StagesPage({ searchParams }: StagesPageProps) {
-  if (!(await hasStagesAccess())) {
-    const { erreur } = await searchParams;
-    const error = Array.isArray(erreur) ? erreur[0] : erreur;
-
-    return (
-      <StagesPasswordGate
-        error={
-          error === "configuration" || error === "mot-de-passe"
-            ? error
-            : undefined
-        }
-      />
-    );
-  }
+export default async function StagesPage() {
+  const profile = await getCurrentProfile();
+  if (!profile) redirect("/connexion?suite=/stages");
+  if (!canViewStages(profile)) return <StagesAccessGate />;
 
   const feed = await getStagesFeed();
   const organizers = new Set(feed.stages.map((stage) => stage.organizer)).size;
@@ -149,14 +131,12 @@ export default async function StagesPage({ searchParams }: StagesPageProps) {
             >
               Stages
             </span>
-            <form action={lockStages}>
-              <button
-                type="submit"
-                className="text-emerald-100/60 transition hover:text-emerald-50"
-              >
-                Verrouiller
-              </button>
-            </form>
+            <Link
+              href="/espace"
+              className="text-emerald-100/60 transition hover:text-emerald-50"
+            >
+              Mon espace
+            </Link>
           </div>
         </nav>
       </header>

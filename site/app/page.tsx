@@ -8,14 +8,18 @@ import {
   salleDePliage,
   gallery,
 } from "@/lib/content";
-import { fetchCalendarEvents, formatEventDate } from "@/lib/calendar";
+import { listPublicEventsSafely } from "@/lib/club-events";
+import { EventList } from "@/app/_components/event-list";
+
+// Le calendrier vient de la base ; chaque modification d’événement rafraîchit aussi la page.
+export const revalidate = 300;
 
 const heroPhoto =
   "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=2400&q=80";
 const sitePhoto = photos.site;
 
 export default async function Home() {
-  const events = await fetchCalendarEvents();
+  const events = await listPublicEventsSafely();
   return (
     <main className="bg-stone-50 text-stone-900">
       {/* Nav */}
@@ -24,12 +28,21 @@ export default async function Home() {
           <Link href="/" className="font-serif text-xl tracking-tight">
             {club.name}
           </Link>
-          <ul className="hidden gap-8 text-sm sm:flex">
-            {["Le club", "Voler", "Calendrier", "Contact"].map((l) => (
-              <li key={l} className="opacity-80 hover:opacity-100">
-                <a href={l === "Calendrier" ? "#calendrier" : "#"}>{l}</a>
-              </li>
-            ))}
+          <ul className="flex items-center gap-5 text-sm sm:gap-8">
+            <li className="hidden opacity-80 hover:opacity-100 sm:block">
+              <a href="#site">Le site</a>
+            </li>
+            <li className="hidden opacity-80 hover:opacity-100 sm:block">
+              <a href="#calendrier">Calendrier</a>
+            </li>
+            <li>
+              <Link
+                href="/espace"
+                className="rounded-full border border-stone-50/40 px-4 py-2 backdrop-blur-sm transition hover:bg-stone-50 hover:text-stone-900"
+              >
+                Espace membres
+              </Link>
+            </li>
           </ul>
         </nav>
       </header>
@@ -253,46 +266,22 @@ export default async function Home() {
               Saison 2026
             </p>
           </div>
-          {events.length === 0 ? (
-            <p className="mt-12 border-t border-stone-200 pt-8 text-stone-600">
-              Pas d&apos;événement programmé pour le moment. Reviens bientôt —
-              on prépare la saison.
-            </p>
-          ) : (
-            <ol className="mt-12 divide-y divide-stone-200 border-t border-stone-200">
-              {events.map((event) => {
-                const { iso, label } = formatEventDate(event);
-                return (
-                  <li
-                    key={event.uid || `${iso}-${event.title}`}
-                    className="grid gap-4 py-8 md:grid-cols-[260px_1fr_auto] md:items-baseline md:gap-10"
-                  >
-                    <time
-                      dateTime={iso}
-                      className="font-serif text-xl text-stone-900"
-                    >
-                      {label}
-                    </time>
-                    <div>
-                      <h3 className="font-serif text-2xl leading-tight">
-                        {event.title}
-                      </h3>
-                      {event.description && (
-                        <p className="mt-2 whitespace-pre-line text-stone-600">
-                          {event.description}
-                        </p>
-                      )}
-                    </div>
-                    {event.location && (
-                      <p className="text-sm text-stone-500 md:text-right">
-                        {event.location}
-                      </p>
-                    )}
-                  </li>
-                );
-              })}
-            </ol>
-          )}
+          <div className="mt-12">
+            <EventList
+              events={events}
+              member={null}
+              retour="/"
+              emptyLabel="Pas d’événement programmé pour le moment. Reviens bientôt — on prépare la saison."
+            />
+          </div>
+          <div className="mt-8 flex flex-wrap gap-x-8 gap-y-3 text-sm text-stone-600">
+            <Link href="/inscription" className="font-medium text-stone-900 underline underline-offset-4">
+              Devenir membre pour s’inscrire aux sorties
+            </Link>
+            <a href="/calendrier.ics" className="underline underline-offset-4 hover:text-stone-900">
+              Ajouter le calendrier à mon agenda
+            </a>
+          </div>
         </div>
       </section>
 
