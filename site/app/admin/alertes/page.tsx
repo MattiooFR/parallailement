@@ -61,7 +61,7 @@ export default async function AlertsPage() {
           <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm leading-relaxed text-stone-800">
             <p className="font-medium">L’envoi n’est pas encore branché.</p>
             <p className="mt-1">
-              Les emails sont préparés et attendent ici. Ils partiront dès que les variables <code>RESEND_API_KEY</code> et{" "}
+              Les emails sont préparés et attendent ici. Ils partiront dès que les variables <code>SMARTLETTER_API_KEY</code> et{" "}
               <code>EMAIL_FROM</code> seront ajoutées sur Vercel.
             </p>
           </div>

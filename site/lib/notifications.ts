@@ -40,7 +40,7 @@ export function siteUrl(): string {
 }
 
 export function isEmailDeliveryConfigured(): boolean {
-  return Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
+  return Boolean(process.env.SMARTLETTER_API_KEY && process.env.EMAIL_FROM);
 }
 
 function db() {
@@ -224,7 +224,8 @@ export async function queueDueReminders(now = new Date()): Promise<number> {
   return due.length;
 }
 
-// Envoie la file par l'API Resend. Sans clé, les emails attendent.
+// Envoie la file par l'API SmartLetter (compatible Resend). Sans clé, les
+// emails attendent. La clé d'idempotence évite un doublon si on retente.
 export async function flushOutbox(limit = 50): Promise<{ sent: number; failed: number; skipped: boolean }> {
   if (!isEmailDeliveryConfigured()) return { sent: 0, failed: 0, skipped: true };
   const { data, error } = await db()
@@ -241,11 +242,13 @@ export async function flushOutbox(limit = 50): Promise<{ sent: number; failed: n
   for (const message of data ?? []) {
     let failure: string | null = null;
     try {
-      const response = await fetch("https://api.resend.com/emails", {
+      const response = await fetch(`${process.env.SMARTLETTER_API_URL ?? "https://api.smartletter.ai"}/emails`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+          Authorization: `Bearer ${process.env.SMARTLETTER_API_KEY}`,
           "Content-Type": "application/json",
+          "Idempotency-Key": `outbox-${message.id}`,
+          "User-Agent": "parallailement.fr",
         },
         body: JSON.stringify({
           from: process.env.EMAIL_FROM,

@@ -44,4 +44,4 @@ ssh prod "docker exec -i appdb-parallailement-db psql -U supabase_admin -d postg
 
 ## Emails
 
-Pas encore d’envoi. GoTrue confirme les comptes automatiquement (validation à la main par un admin ensuite). Chaque alerte est écrite dans `email_outbox` ; elle part dès que `RESEND_API_KEY` et `EMAIL_FROM` sont définies sur Vercel (domaine vérifié chez Resend). La tâche `/api/notifications/run` (toutes les heures à :15) met les rappels en file et vide la file.
+Pas encore d’envoi. GoTrue confirme les comptes automatiquement (validation à la main par un admin ensuite). Chaque alerte est écrite dans `email_outbox` ; elle part par l’API SmartLetter (compatible Resend, `https://api.smartletter.ai`, espace `dugue.mathieu`) dès que `SMARTLETTER_API_KEY` et `EMAIL_FROM` sont définies sur Vercel. Le domaine `parallailement.fr` y est vérifié (DKIM SES + MX/SPF sur `send.` dans Cloudflare). La clé du site est en `sending_access`, limitée à ce domaine. La tâche `/api/notifications/run` (toutes les heures à :15) met les rappels en file et vide la file.
