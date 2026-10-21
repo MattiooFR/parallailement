@@ -36,11 +36,18 @@ export async function GET(request: Request) {
       stageCount: result.stageCount,
     });
   } catch (error) {
+    // supabase-js rend des PostgrestError (objets simples, pas des Error) : garder leur message.
+    console.error("[stage-sync] échec", error);
     await pingHealthchecks(true);
     return NextResponse.json(
       {
         error: "La synchronisation a échoué",
-        detail: error instanceof Error ? error.message : "Erreur inconnue",
+        detail:
+          error instanceof Error
+            ? error.message
+            : typeof error === "object" && error && "message" in error
+              ? String((error as { message: unknown }).message)
+              : "Erreur inconnue",
       },
       { status: 500 },
     );
