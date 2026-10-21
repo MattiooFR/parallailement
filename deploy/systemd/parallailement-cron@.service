@@ -1,0 +1,11 @@
+# Remplace les crons Vercel (vercel.json). %i = stages-sync | notifications-run.
+# Appel local du conteneur (127.0.0.1:3066), Authorization: Bearer <CRON_SECRET de web.env>.
+# ($$ = $ littéral pour systemd, %% = % littéral.)
+[Unit]
+Description=parallailement.fr cron %i
+After=docker.service
+
+[Service]
+Type=oneshot
+User=mattioo
+ExecStart=/bin/bash -c 'set -euo pipefail; s=$$(sed -n "s/^CRON_SECRET=//p" /home/mattioo/apps/parallailement/web.env | tr -d "\\047\\042"); p=$$(echo %i | sed "s#-#/#"); out=$$(mktemp); code=$$(curl -sS -o "$$out" -w "%%{http_code}" --max-time 600 -H "Authorization: Bearer $$s" "http://127.0.0.1:3066/api/$$p"); echo "HTTP $$code $$(head -c 300 "$$out")"; rm -f "$$out"; [ "$$code" = 200 ]'

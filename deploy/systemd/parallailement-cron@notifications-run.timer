@@ -1,0 +1,10 @@
+[Unit]
+Description=parallailement.fr /api/notifications/run à h15 (ex-cron Vercel "15 * * * *")
+
+[Timer]
+OnCalendar=*-*-* *:15:00
+Persistent=true
+Unit=parallailement-cron@notifications-run.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,12 @@
+# ~/apps/parallailement/compose.yaml sur `prod` (copié par deploy/ship.sh).
+# build.env : NEXT_PUBLIC_* (publiques) ; web.env : secrets (service role, CRON_SECRET, SmartLetter, healthchecks).
+name: parallailement
+services:
+  web:
+    image: parallailement-web:${IMAGE_TAG:?}
+    restart: unless-stopped
+    env_file: [build.env, web.env]
+    ports: ["127.0.0.1:3066:3000"]
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }

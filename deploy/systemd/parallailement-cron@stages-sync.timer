@@ -1,0 +1,10 @@
+[Unit]
+Description=parallailement.fr /api/stages/sync toutes les heures (ex-cron Vercel "0 * * * *")
+
+[Timer]
+OnCalendar=*-*-* *:00:00
+Persistent=true
+Unit=parallailement-cron@stages-sync.service
+
+[Install]
+WantedBy=timers.target
