@@ -5,6 +5,15 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
+// Heartbeat healthchecks.io : un email part si la tâche ne tourne plus ou échoue.
+async function pingHealthchecks(failed: boolean) {
+  const url = process.env.HEALTHCHECKS_PING_URL;
+  if (!url) return;
+  await fetch(failed ? `${url}/fail` : url, {
+    signal: AbortSignal.timeout(5_000),
+  }).catch(() => {});
+}
+
 export async function GET(request: Request) {
   if (
     !verifyCronAuthorization(
@@ -17,6 +26,7 @@ export async function GET(request: Request) {
 
   try {
     const result = await runStageSync();
+    await pingHealthchecks(false);
     return NextResponse.json({
       checkedAt: result.checkedAt,
       state: result.state,
@@ -26,6 +36,7 @@ export async function GET(request: Request) {
       stageCount: result.stageCount,
     });
   } catch (error) {
+    await pingHealthchecks(true);
     return NextResponse.json(
       {
         error: "La synchronisation a échoué",
