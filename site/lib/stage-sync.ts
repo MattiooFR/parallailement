@@ -59,12 +59,41 @@ function curatedResult(checkedAt: string, today: string): StageSourceResult {
   };
 }
 
+// Une source peut publier un stage incohérent (fin avant début, date illisible) : la base le
+// refuse (check end_date >= start_date) et tout le lot échouait. On l'écarte et on le journalise.
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+export function dropIncoherentStages(results: StageSourceResult[]) {
+  return results.map((result) => {
+    const stages = result.stages.filter((stage) => {
+      const ok =
+        ISO_DATE.test(stage.startDate) &&
+        ISO_DATE.test(stage.endDate) &&
+        stage.endDate >= stage.startDate;
+      if (!ok) {
+        console.warn(
+          `[stage-sync] stage ignoré (dates incohérentes) : ${result.source.id}/${stage.id} ${stage.startDate} -> ${stage.endDate}`,
+        );
+      }
+      return ok;
+    });
+    if (stages.length === result.stages.length) return result;
+    return {
+      ...result,
+      stages,
+      source: { ...result.source, stageCount: stages.length },
+    };
+  });
+}
+
 export async function runStageSync(now = new Date()) {
   const checkedAt = now.toISOString();
   const today = checkedAt.slice(0, 10);
   const { fetchStageSources } = await import("./stage-sources");
   const fetchedResults = await fetchStageSources(checkedAt, today);
-  const results = [...fetchedResults, curatedResult(checkedAt, today)];
+  const results = dropIncoherentStages([
+    ...fetchedResults,
+    curatedResult(checkedAt, today),
+  ]);
   const summary = summarizeStageSync(results);
   await persistStageSync({ checkedAt, results });
   await recordStageSyncRun({ checkedAt, summary });
