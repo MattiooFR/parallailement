@@ -301,25 +301,31 @@ export async function persistStageSync({
     .in("source_id", Array.from(successfulSourceIds));
   if (existingResponse.error) throw existingResponse.error;
 
+  const seenIds = new Set(stageRows.map((row) => row.id));
+  // Les stages vus viennent d'être remis à missing_success_count = 0 / active = true par
+  // l'upsert : seuls les absents changent. Et jamais des centaines de PATCH en parallèle :
+  // le pool de PostgREST sature (PGRST003) et toute la synchro tombe en 504.
   const updates = advanceMissingStageRows(
     (existingResponse.data ?? []) as MissingStageRow[],
-    new Set(stageRows.map((row) => row.id)),
+    seenIds,
     successfulSourceIds,
-  );
-  const updateResponses = await Promise.all(
-    updates.map((update) =>
-      supabase
-        .from("stages")
-        .update({
-          missing_success_count: update.missing_success_count,
-          active: update.active,
-          updated_at: checkedAt,
-        })
-        .eq("id", update.id),
-    ),
-  );
-  const failedUpdate = updateResponses.find((response) => response.error);
-  if (failedUpdate?.error) throw failedUpdate.error;
+  ).filter((update) => !seenIds.has(update.id));
+  for (let index = 0; index < updates.length; index += 10) {
+    const updateResponses = await Promise.all(
+      updates.slice(index, index + 10).map((update) =>
+        supabase
+          .from("stages")
+          .update({
+            missing_success_count: update.missing_success_count,
+            active: update.active,
+            updated_at: checkedAt,
+          })
+          .eq("id", update.id),
+      ),
+    );
+    const failedUpdate = updateResponses.find((response) => response.error);
+    if (failedUpdate?.error) throw failedUpdate.error;
+  }
 }
 
 export async function recordStageSyncRun({
