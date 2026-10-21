@@ -89,8 +89,9 @@ install_nginx() {   # $1 = dossier source
     fi
   done
   [ "$changed" = 1 ] || return 0
-  if sudo -n nginx -t 2>&1 | tail -n 2; [ "${PIPESTATUS[0]}" -eq 0 ]; then
-    sudo -n systemctl reload nginx; say "nginx rechargé"
+  # Verrou partagé avec les autres déploiements de la machine (plusieurs sessions touchent nginx).
+  if sudo -n flock -w 120 /run/lock/nginx-deploy.lock sh -c 'nginx -t && systemctl reload nginx' 2>&1 | tail -n 2; [ "${PIPESTATUS[0]}" -eq 0 ]; then
+    say "nginx testé et rechargé"
   else
     for f in "$1"/deploy/nginx/*.conf; do
       name="$(basename "$f" .conf)"

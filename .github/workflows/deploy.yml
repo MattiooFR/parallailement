@@ -1,0 +1,29 @@
+# Autodéploiement sur la prod OVH à chaque push sur main (21/10/2026).
+# Aucun build ici : le runner self-hosted ci-hetzner (ancien Hetzner, utilisateur dédié au projet)
+# envoie un git archive par SSH/Tailscale à la porte /home/mattioo/bin/ship-gate de la prod,
+# qui lance deploy/ship.sh --on-server (build sur la prod, sonde, retour arrière).
+# Clé : ~/.ssh/ship-prod de l'utilisateur du runner, restreinte côté prod à « deploy parallailement <sha> ».
+name: deploy
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - 'deploy/**'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: [self-hosted, ci-hetzner]
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Envoi vers la prod et déploiement
+        shell: bash
+        run: |
+          git archive --format=tar "$GITHUB_SHA" | ssh -i "$HOME/.ssh/ship-prod" -o IdentitiesOnly=yes \
+            -o BatchMode=yes -o StrictHostKeyChecking=yes -o ServerAliveInterval=30 \
+            mattioo@100.69.67.99 "deploy parallailement $GITHUB_SHA"
