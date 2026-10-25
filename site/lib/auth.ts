@@ -2,6 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import {
   canManageCalendar,
   isActiveMember,
@@ -36,6 +37,10 @@ export function isMembershipConfigured(): boolean {
 // La session est vérifiée auprès de GoTrue (getUser), jamais lue telle quelle
 // dans le cookie ; le profil et ses droits viennent de la base.
 export const getCurrentProfile = cache(async (): Promise<Profile | null> => {
+  // Toujours au rendu de la requête : le build Docker n'a pas la clé
+  // service_role, et sans cet appel Next figeait /espace et /admin en
+  // redirection vers /connexion (boucle avec /connexion, qui voit la session).
+  await connection();
   if (!isMembershipConfigured()) return null;
   const supabase = await createServerSupabaseClient();
   let { data, error } = await supabase.auth.getUser();
