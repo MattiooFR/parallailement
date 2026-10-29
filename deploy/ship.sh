@@ -112,7 +112,7 @@ install_nginx() {   # $1 = dossier source
     [ -e "$f" ] || return 0
     name="$(basename "$f" .conf)"
     if ! sudo -n cmp -s "$f" "/etc/nginx/sites-available/$name"; then
-      rm -f "/tmp/$name.ship-bak"
+      sudo -n rm -f "/tmp/$name.ship-bak"   # créée par sudo cp : un rm sans sudo échoue (sticky bit de /tmp)
       [ -e "/etc/nginx/sites-available/$name" ] && sudo -n cp -p "/etc/nginx/sites-available/$name" "/tmp/$name.ship-bak"
       sudo -n install -m 644 "$f" "/etc/nginx/sites-available/$name"
       sudo -n ln -sfn "/etc/nginx/sites-available/$name" "/etc/nginx/sites-enabled/$name"
